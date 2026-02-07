@@ -3,8 +3,10 @@ import Header from '../components/Header';
 import TabBar from '../components/TabBar';
 import DocumentList from '../components/DocumentList';
 import PDFViewer from '../components/PDFViewer';
+import ThemeSettings from '../components/ThemeSettings';
 import { getTabs, getDocuments } from '../services/api';
 import type { Tab, Document } from '../types';
+import { getUser, isAdmin } from '../utils/auth';
 import '../styles/Dashboard.css';
 
 interface DashboardProps {
@@ -12,6 +14,9 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onLogout }: DashboardProps) {
+  const user = getUser();
+  const isUserAdmin = isAdmin(user);
+  const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -34,6 +39,9 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       setTabs(tabsData);
       if (tabsData.length > 0) {
         setActiveTab(tabsData[0].id);
+      } else {
+        setActiveTab(0);
+        setDocuments([]);
       }
     } catch (error) {
       console.error('Error cargando pestañas:', error);
@@ -61,6 +69,22 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     loadDocuments(activeTab);
   };
 
+  const handleTabsChange = (updatedTabs: Tab[]) => {
+    setTabs(updatedTabs);
+    setSelectedDocument(null);
+
+    if (updatedTabs.length === 0) {
+      setActiveTab(0);
+      setDocuments([]);
+      return;
+    }
+
+    const activeTabExists = updatedTabs.some((tab) => tab.id === activeTab);
+    if (!activeTabExists) {
+      setActiveTab(updatedTabs[0].id);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -72,24 +96,40 @@ export default function Dashboard({ onLogout }: DashboardProps) {
 
   return (
     <div className="dashboard">
-      <Header onLogout={onLogout} />
-      <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+      <Header
+        onLogout={onLogout}
+        isAdmin={isUserAdmin}
+        isThemeSettingsOpen={showThemeSettings}
+        onToggleThemeSettings={() => setShowThemeSettings((previous) => !previous)}
+      />
 
-      <div className="dashboard-content">
-        <aside className="sidebar">
-          <DocumentList
-            documents={documents}
-            activeTab={activeTab}
-            selectedDocument={selectedDocument}
-            onDocumentSelect={setSelectedDocument}
-            onDocumentsChange={handleDocumentsChange}
-          />
-        </aside>
+      {showThemeSettings && isUserAdmin ? (
+        <section className="theme-settings-screen">
+          <div className="theme-settings-panel">
+            <ThemeSettings tabs={tabs} activeTab={activeTab} onTabsChange={handleTabsChange} />
+          </div>
+        </section>
+      ) : (
+        <>
+          <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <main className="main-content">
-          <PDFViewer document={selectedDocument} />
-        </main>
-      </div>
+          <div className="dashboard-content">
+            <aside className="sidebar">
+              <DocumentList
+                documents={documents}
+                activeTab={activeTab}
+                selectedDocument={selectedDocument}
+                onDocumentSelect={setSelectedDocument}
+                onDocumentsChange={handleDocumentsChange}
+              />
+            </aside>
+
+            <main className="main-content">
+              <PDFViewer document={selectedDocument} />
+            </main>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import axios from 'axios';
-import type { LoginResponse, Tab, Document } from '../types';
+import type { LoginResponse, Tab, Document, TabUpdateInput } from '../types';
 
-const API_URL = '/api';
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') || '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -37,6 +37,21 @@ export const verifyToken = async (): Promise<boolean> => {
 // Tabs
 export const getTabs = async (): Promise<Tab[]> => {
   const response = await api.get<Tab[]>('/tabs');
+  return response.data;
+};
+
+export const createTab = async (name: string): Promise<Tab> => {
+  const response = await api.post<Tab>('/tabs', { name });
+  return response.data;
+};
+
+export const updateTabs = async (tabs: TabUpdateInput[]): Promise<Tab[]> => {
+  const response = await api.put<Tab[]>('/tabs', { tabs });
+  return response.data;
+};
+
+export const deleteTab = async (tabId: number): Promise<Tab[]> => {
+  const response = await api.delete<Tab[]>(`/tabs/${tabId}`);
   return response.data;
 };
 

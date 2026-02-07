@@ -1,16 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
 import { initDatabase } from './config/database';
+import { DB_PATH, UPLOADS_DIR } from './config/env';
 
 // Importar rutas
 import authRoutes from './routes/auth';
 import tabRoutes from './routes/tabs';
 import documentRoutes from './routes/documents';
-
-// Cargar variables de entorno
-dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 // Inicializar base de datos
 initDatabase();
@@ -44,6 +40,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`\n🚀 Servidor ejecutándose en http://localhost:${PORT}`);
-  console.log(`📊 Base de datos: ${process.env.DB_PATH || 'database.sqlite'}`);
-  console.log(`📁 Directorio de uploads: ${process.env.UPLOADS_DIR || '../uploads'}\n`);
+  console.log(`📊 Base de datos: ${DB_PATH}`);
+  console.log(`📁 Directorio de uploads: ${UPLOADS_DIR}\n`);
 });

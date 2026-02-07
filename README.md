@@ -4,7 +4,7 @@ Aplicación web completa de agenda digital optimizada para tabletas, con sistema
 
 ## 🎯 Características
 
-- **Sistema de Autenticación JWT**: Login seguro con roles de administrador y lector
+- **Sistema de Autenticación JWT**: Login seguro con perfiles de administrador y principal
 - **Gestión de Documentos PDF**: Subir, visualizar y eliminar archivos PDF organizados por temas
 - **Visor PDF Embebido**: Visualización directa en la aplicación con controles de zoom y navegación
 - **Interfaz Optimizada para Tableta**: Diseño responsive con elementos táctiles de tamaño adecuado
@@ -118,9 +118,9 @@ Al iniciar el servidor por primera vez, se crean automáticamente estos usuarios
 | Usuario | Contraseña | Rol |
 |---------|-----------|-----|
 | admin | admin123 | Administrador |
-| lector | lector123 | Lector |
+| Director | director123 | Principal |
 
-**⚠️ IMPORTANTE**: Cambiar estas contraseñas en producción.
+**⚠️ IMPORTANTE**: En producción define credenciales fuertes por variables de entorno.
 
 ## 📋 Roles y Permisos
 
@@ -130,7 +130,7 @@ Al iniciar el servidor por primera vez, se crean automáticamente estos usuarios
 - ✅ Eliminar PDFs existentes
 - ✅ Acceso a todas las pestañas
 
-### Lector
+### Principal
 - ✅ Visualizar y descargar PDFs
 - ❌ No puede subir PDFs
 - ❌ No puede eliminar PDFs
@@ -209,10 +209,10 @@ El logo es un placeholder SVG. Reemplaza el código SVG en:
 - Middleware de autenticación en todas las rutas protegidas
 
 **⚠️ Para producción:**
-1. Cambiar `JWT_SECRET` en el archivo `.env`
-2. Cambiar las contraseñas de los usuarios por defecto
-3. Configurar HTTPS
-4. Revisar límites de tamaño de archivo según necesidades
+1. Definir `JWT_SECRET` (mínimo 32 caracteres)
+2. Definir `DEFAULT_ADMIN_PASSWORD` y `DEFAULT_READER_PASSWORD` con contraseñas fuertes
+3. Definir `DB_PATH` y `UPLOADS_DIR` en almacenamiento persistente
+4. Configurar HTTPS
 
 ## 📱 Optimización para Tableta
 
@@ -246,6 +246,25 @@ El logo es un placeholder SVG. Reemplaza el código SVG en:
 - Los PDFs se organizan en carpetas por pestaña: `uploads/tab-{id}/`
 - El worker de PDF.js se carga desde CDN para simplificar el build
 - Los estilos están modularizados por componente
+
+## 🚂 Railway + Volumen
+
+Configura un volumen y móntalo, por ejemplo, en `/data`, luego define estas variables en Railway:
+
+```env
+NODE_ENV=production
+JWT_SECRET=TU_SECRETO_DE_AL_MENOS_32_CARACTERES
+DB_PATH=/data/database.sqlite
+UPLOADS_DIR=/data/uploads
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=TU_PASSWORD_ADMIN_FUERTE
+DEFAULT_READER_USERNAME=Director
+DEFAULT_READER_PASSWORD=TU_PASSWORD_DIRECTOR_FUERTE
+```
+
+Notas:
+- Si la tabla `users` está vacía en producción y faltan `DEFAULT_ADMIN_PASSWORD` o `DEFAULT_READER_PASSWORD`, el servidor no arranca.
+- El login ya no muestra usuarios de prueba cuando está en producción.
 
 ## 🐛 Solución de Problemas
 

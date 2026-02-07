@@ -3,6 +3,7 @@ import db from '../config/database';
 import path from 'path';
 import fs from 'fs';
 import { AuthRequest } from '../middleware/auth';
+import { UPLOADS_DIR } from '../config/env';
 
 interface Document {
   id: number;
@@ -93,8 +94,7 @@ export const getDocumentFile = (req: AuthRequest, res: Response) => {
     const { filename } = req.params;
     const { tabId } = req.query;
 
-    const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../../uploads');
-    const filePath = path.join(uploadsDir, `tab-${tabId}`, filename);
+    const filePath = path.join(UPLOADS_DIR, `tab-${tabId}`, filename);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Archivo no encontrado' });

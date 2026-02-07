@@ -16,6 +16,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .main-content {
@@ -40,6 +41,19 @@
   margin: 0;
 }
 
+.theme-settings-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #f8f2f4 0%, #f3f6fb 100%);
+  padding: 24px;
+}
+
+.theme-settings-panel {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
 @media (max-width: 1024px) {
   .dashboard-content {
     grid-template-columns: 350px 1fr;
@@ -47,6 +61,10 @@
 }
 
 @media (max-width: 768px) {
+  .theme-settings-screen {
+    padding: 12px;
+  }
+
   .dashboard-content {
     grid-template-columns: 1fr;
   }

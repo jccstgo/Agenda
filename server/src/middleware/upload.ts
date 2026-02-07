@@ -1,18 +1,17 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-
-const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../../uploads');
+import { UPLOADS_DIR } from '../config/env';
 
 // Asegurar que el directorio de uploads existe
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const tabId = req.params.tabId || 'general';
-    const tabDir = path.join(uploadsDir, `tab-${tabId}`);
+    const tabDir = path.join(UPLOADS_DIR, `tab-${tabId}`);
 
     if (!fs.existsSync(tabDir)) {
       fs.mkdirSync(tabDir, { recursive: true });

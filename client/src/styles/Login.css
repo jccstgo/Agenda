@@ -33,10 +33,19 @@
   margin-bottom: 40px;
 }
 
-.logo-placeholder {
+.login-logo {
   display: flex;
   justify-content: center;
   margin-bottom: 24px;
+}
+
+.login-logo-image {
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 50%;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
 }
 
 .login-header h1 {

@@ -1,9 +1,21 @@
 import Database from 'better-sqlite3';
-import path from 'path';
 import bcrypt from 'bcryptjs';
+import {
+  DB_PATH,
+  DEFAULT_ADMIN_PASSWORD,
+  DEFAULT_ADMIN_USERNAME,
+  DEFAULT_READER_PASSWORD,
+  DEFAULT_READER_USERNAME,
+  HAS_ADMIN_PASSWORD_FROM_ENV,
+  HAS_READER_PASSWORD_FROM_ENV,
+  IS_PRODUCTION
+} from './env';
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../database.sqlite');
-const db = new Database(dbPath);
+const db = new Database(DB_PATH);
+const LEGACY_ADMIN_PASSWORD = 'admin123';
+const LEGACY_READER_USERNAME = 'lector';
+const LEGACY_READER_PASSWORD = 'lector123';
+const LEGACY_DIRECTOR_PASSWORD = 'director123';
 
 // Habilitar foreign keys
 db.pragma('foreign_keys = ON');
@@ -51,13 +63,85 @@ export const initDatabase = () => {
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
 
   if (userCount.count === 0) {
-    const adminPassword = bcrypt.hashSync('admin123', 10);
-    const readerPassword = bcrypt.hashSync('lector123', 10);
+    if (IS_PRODUCTION && (!HAS_ADMIN_PASSWORD_FROM_ENV || !HAS_READER_PASSWORD_FROM_ENV)) {
+      throw new Error(
+        'En producción y con base vacía, define DEFAULT_ADMIN_PASSWORD y DEFAULT_READER_PASSWORD antes de iniciar.'
+      );
+    }
 
-    db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', adminPassword, 'admin');
-    db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('lector', readerPassword, 'reader');
+    const adminPassword = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, 10);
+    const readerPassword = bcrypt.hashSync(DEFAULT_READER_PASSWORD, 10);
+
+    db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(
+      DEFAULT_ADMIN_USERNAME,
+      adminPassword,
+      'admin'
+    );
+    db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(
+      DEFAULT_READER_USERNAME,
+      readerPassword,
+      'reader'
+    );
 
     console.log('✓ Usuarios por defecto creados');
+  }
+
+  // Migración: renombrar usuario legado "lector" a "Director" si no existe aún
+  const existingDirector = db
+    .prepare('SELECT id FROM users WHERE lower(username) = lower(?)')
+    .get(DEFAULT_READER_USERNAME) as { id: number } | undefined;
+
+  if (!existingDirector) {
+    const legacyReader = db
+      .prepare('SELECT id, password FROM users WHERE lower(username) = lower(?) AND role = ?')
+      .get(LEGACY_READER_USERNAME, 'reader') as { id: number; password: string } | undefined;
+
+    if (legacyReader) {
+      const shouldRotatePassword = bcrypt.compareSync(LEGACY_READER_PASSWORD, legacyReader.password);
+      const nextPassword = shouldRotatePassword
+        ? bcrypt.hashSync(DEFAULT_READER_PASSWORD, 10)
+        : legacyReader.password;
+
+      db.prepare('UPDATE users SET username = ?, password = ? WHERE id = ?').run(
+        DEFAULT_READER_USERNAME,
+        nextPassword,
+        legacyReader.id
+      );
+      console.log('✓ Usuario "lector" migrado a "Director"');
+    }
+  }
+
+  // Migración de seguridad: rotar contraseñas por defecto en producción si se definieron nuevas contraseñas fuertes
+  if (IS_PRODUCTION && HAS_ADMIN_PASSWORD_FROM_ENV) {
+    const adminUser = db
+      .prepare('SELECT id, password FROM users WHERE lower(username) = lower(?) AND role = ?')
+      .get(DEFAULT_ADMIN_USERNAME, 'admin') as { id: number; password: string } | undefined;
+
+    if (adminUser && bcrypt.compareSync(LEGACY_ADMIN_PASSWORD, adminUser.password)) {
+      db.prepare('UPDATE users SET password = ? WHERE id = ?').run(
+        bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, 10),
+        adminUser.id
+      );
+      console.log('✓ Contraseña de admin actualizada desde valor por defecto');
+    }
+  }
+
+  if (IS_PRODUCTION && HAS_READER_PASSWORD_FROM_ENV) {
+    const readerUser = db
+      .prepare('SELECT id, password FROM users WHERE lower(username) = lower(?) AND role = ?')
+      .get(DEFAULT_READER_USERNAME, 'reader') as { id: number; password: string } | undefined;
+
+    if (
+      readerUser &&
+      (bcrypt.compareSync(LEGACY_DIRECTOR_PASSWORD, readerUser.password) ||
+        bcrypt.compareSync(LEGACY_READER_PASSWORD, readerUser.password))
+    ) {
+      db.prepare('UPDATE users SET password = ? WHERE id = ?').run(
+        bcrypt.hashSync(DEFAULT_READER_PASSWORD, 10),
+        readerUser.id
+      );
+      console.log('✓ Contraseña de Director actualizada desde valor por defecto');
+    }
   }
 
   // Insertar pestañas por defecto si no existen

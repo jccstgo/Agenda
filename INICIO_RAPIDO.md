@@ -34,9 +34,9 @@ Usa uno de estos usuarios de prueba:
 - Usuario: `admin`
 - Contraseña: `admin123`
 
-**Lector:**
-- Usuario: `lector`
-- Contraseña: `lector123`
+**Principal:**
+- Usuario: `Director`
+- Contraseña: `director123`
 
 ## ✅ Funcionalidades
 
@@ -47,7 +47,7 @@ Usa uno de estos usuarios de prueba:
 4. ✅ Eliminar documentos
 5. ✅ Descargar PDFs
 
-### Como Lector:
+### Como Principal:
 1. ✅ Ver todas las pestañas
 2. ✅ Visualizar PDFs embebidos
 3. ✅ Descargar PDFs

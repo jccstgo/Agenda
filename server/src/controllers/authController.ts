@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../config/database';
+import { JWT_SECRET } from '../config/env';
 
 interface User {
   id: number;
@@ -33,10 +34,9 @@ export const login = (req: Request, res: Response) => {
     }
 
     // Generar token
-    const secret = process.env.JWT_SECRET || 'default-secret-key';
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
-      secret,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 

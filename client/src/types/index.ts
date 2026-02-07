@@ -15,6 +15,11 @@ export interface Tab {
   order_index: number;
 }
 
+export interface TabUpdateInput {
+  id: number;
+  name: string;
+}
+
 export interface Document {
   id: number;
   tab_id: number;
