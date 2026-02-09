@@ -266,6 +266,50 @@ Notas:
 - Si la tabla `users` está vacía en producción y faltan `DEFAULT_ADMIN_PASSWORD` o `DEFAULT_READER_PASSWORD`, el servidor no arranca.
 - El login ya no muestra usuarios de prueba cuando está en producción.
 
+## 🚀 Deployment en Producción
+
+### Railway (Recomendado)
+
+Esta aplicación está lista para deployment en [Railway.app](https://railway.app) con almacenamiento persistente.
+
+**Guía completa**: Ver [DEPLOYMENT_RAILWAY.md](DEPLOYMENT_RAILWAY.md)
+
+**Pasos rápidos**:
+
+1. **Generar secretos seguros**:
+   ```bash
+   ./generate-secrets.sh
+   ```
+
+2. **Verificar preparación**:
+   ```bash
+   ./verify-deployment.sh
+   ```
+
+3. **Commit y push**:
+   ```bash
+   git add .
+   git commit -m "Preparar para deployment"
+   git push origin main
+   ```
+
+4. **Seguir la guía**: [DEPLOYMENT_RAILWAY.md](DEPLOYMENT_RAILWAY.md)
+
+### Variables de Entorno Requeridas en Producción
+
+```env
+NODE_ENV=production
+JWT_SECRET=tu-secreto-de-64-caracteres
+DB_PATH=/data/database.sqlite
+UPLOADS_DIR=/data/uploads
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=TuPasswordFuerte123!
+DEFAULT_READER_USERNAME=Director
+DEFAULT_READER_PASSWORD=TuPasswordFuerte456!
+```
+
+**⚠️ IMPORTANTE**: Las contraseñas deben tener mínimo 12 caracteres con mayúsculas, minúsculas, números y símbolos.
+
 ## 🐛 Solución de Problemas
 
 ### El servidor no inicia

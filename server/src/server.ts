@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { initDatabase } from './config/database';
-import { DB_PATH, UPLOADS_DIR } from './config/env';
+import { DB_PATH, UPLOADS_DIR, IS_PRODUCTION } from './config/env';
 
 // Importar rutas
 import authRoutes from './routes/auth';
@@ -19,6 +20,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir archivos estáticos del cliente en producción
+if (IS_PRODUCTION) {
+  const clientBuildPath = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientBuildPath));
+}
+
 // Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/tabs', tabRoutes);
@@ -28,6 +35,13 @@ app.use('/api/documents', documentRoutes);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Servidor funcionando correctamente' });
 });
+
+// En producción, servir el index.html para cualquier ruta no API
+if (IS_PRODUCTION) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+  });
+}
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -1,0 +1,26 @@
+node_modules
+npm-debug.log
+.env
+.DS_Store
+*.log
+.git
+.gitignore
+README.md
+RESUMEN_PROYECTO.md
+INICIO_RAPIDO.md
+PERSONALIZACION.md
+
+# Build artifacts
+client/dist
+server/dist
+
+# Development
+.vscode
+.idea
+
+# Database files (se crearán en el volumen)
+*.sqlite
+*.sqlite-journal
+
+# Uploads (se almacenarán en el volumen)
+uploads/
