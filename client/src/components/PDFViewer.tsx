@@ -11,15 +11,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 
 interface PDFViewerProps {
   document: Document | null;
-  isSidebarVisible: boolean;
-  onToggleSidebar: () => void;
 }
 
-export default function PDFViewer({
-  document: selectedDocument,
-  isSidebarVisible,
-  onToggleSidebar
-}: PDFViewerProps) {
+export default function PDFViewer({ document: selectedDocument }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(900);
   const [pdfUrl, setPdfUrl] = useState<string>('');
@@ -86,12 +80,7 @@ export default function PDFViewer({
     return (
       <div className="pdf-viewer" ref={viewerRef}>
         <div className="pdf-header">
-          <div className="pdf-header-main">
-            <button className="sidebar-toggle-button" onClick={onToggleSidebar}>
-              {isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
-            </button>
-            <h2 className="pdf-title">Visor de documentos</h2>
-          </div>
+          <h2 className="pdf-title">Visor de documentos</h2>
         </div>
         <div className="no-document-selected">
           <svg width="120" height="120" viewBox="0 0 24 24" fill="none">
@@ -113,12 +102,7 @@ export default function PDFViewer({
   return (
     <div className={`pdf-viewer ${isFullscreen ? 'fullscreen' : ''}`} ref={viewerRef}>
       <div className="pdf-header">
-        <div className="pdf-header-main">
-          <button className="sidebar-toggle-button" onClick={onToggleSidebar}>
-            {isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
-          </button>
-          <h2 className="pdf-title">{selectedDocument.original_name}</h2>
-        </div>
+        <h2 className="pdf-title">{selectedDocument.original_name}</h2>
 
         <div className="pdf-controls">
           <button className="fullscreen-button" onClick={toggleFullscreen}>

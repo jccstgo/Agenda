@@ -123,8 +123,18 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
           <div className={`dashboard-content ${isSidebarVisible ? 'sidebar-visible' : 'sidebar-hidden'}`}>
-            {isSidebarVisible && (
-              <aside className="sidebar">
+            <aside className={`sidebar ${isSidebarVisible ? 'visible' : 'collapsed'}`}>
+              <button
+                type="button"
+                className="sidebar-toggle-handle"
+                onClick={() => setIsSidebarVisible((current) => !current)}
+                title={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
+                aria-label={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
+              >
+                {isSidebarVisible ? '‹' : '›'}
+              </button>
+
+              {isSidebarVisible && (
                 <DocumentList
                   documents={documents}
                   activeTab={activeTab}
@@ -132,15 +142,11 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                   onDocumentSelect={handleDocumentSelect}
                   onDocumentsChange={handleDocumentsChange}
                 />
-              </aside>
-            )}
+              )}
+            </aside>
 
             <main className="main-content">
-              <PDFViewer
-                document={selectedDocument}
-                isSidebarVisible={isSidebarVisible}
-                onToggleSidebar={() => setIsSidebarVisible((current) => !current)}
-              />
+              <PDFViewer document={selectedDocument} />
             </main>
           </div>
         </>
