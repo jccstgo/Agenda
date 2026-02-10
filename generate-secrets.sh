@@ -7,10 +7,27 @@ echo "🔐 Generador de Secretos para Railway"
 echo "======================================"
 echo ""
 
-# Función para generar una contraseña fuerte
+# Función para generar una contraseña fuerte que GARANTIZA cumplir todos los requisitos
 generate_password() {
-    # Genera una contraseña de 16 caracteres con mayúsculas, minúsculas, números y símbolos
-    LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*()_+=' < /dev/urandom | head -c 16
+    # Genera una contraseña de 16 caracteres asegurando al menos:
+    # - 3 mayúsculas, 3 minúsculas, 3 números, 3 símbolos, 4 mixtos
+
+    # Generar caracteres garantizados (SOLO símbolos seguros para env vars)
+    # Evita: $ ! ` \ & ( ) | ; < > [ ] { } ' "
+    # Usa: @ # % ^ * _ + = - .
+    local upper=$(LC_ALL=C tr -dc 'A-Z' < /dev/urandom | head -c 3)
+    local lower=$(LC_ALL=C tr -dc 'a-z' < /dev/urandom | head -c 3)
+    local digit=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 3)
+    local symbol=$(LC_ALL=C tr -dc '@#%^*_+=.-' < /dev/urandom | head -c 3)
+
+    # Generar caracteres adicionales para llegar a 16
+    local extra=$(LC_ALL=C tr -dc 'A-Za-z0-9@#%^*_+=.-' < /dev/urandom | head -c 4)
+
+    # Combinar todos los caracteres
+    local combined="${upper}${lower}${digit}${symbol}${extra}"
+
+    # Mezclar usando awk (compatible con macOS)
+    echo "$combined" | fold -w1 | awk 'BEGIN{srand()}{print rand() "\t" $0}' | sort -n | cut -f2 | tr -d '\n'
 }
 
 # Generar JWT_SECRET (64 caracteres hexadecimales)
