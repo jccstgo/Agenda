@@ -20,8 +20,11 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: string };
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: 'superadmin' | 'admin' | 'reader' };
+    req.user = {
+      ...decoded,
+      userId: decoded.id
+    };
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
