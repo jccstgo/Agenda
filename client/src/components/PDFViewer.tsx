@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import type { Document } from '../types';
 import { getDocumentUrl } from '../services/api';
@@ -11,50 +11,88 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 
 interface PDFViewerProps {
   document: Document | null;
+  isSidebarVisible: boolean;
+  onToggleSidebar: () => void;
 }
 
-export default function PDFViewer({ document }: PDFViewerProps) {
+export default function PDFViewer({
+  document: selectedDocument,
+  isSidebarVisible,
+  onToggleSidebar
+}: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.0);
+  const [containerWidth, setContainerWidth] = useState<number>(900);
   const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (document) {
-      const url = getDocumentUrl(document.filename, document.tab_id);
+    if (selectedDocument) {
+      const url = getDocumentUrl(selectedDocument.filename, selectedDocument.tab_id);
       setPdfUrl(url);
-      setPageNumber(1);
-      setScale(1.0);
+      return;
     }
-  }, [document]);
+
+    setNumPages(0);
+    setPdfUrl('');
+  }, [selectedDocument]);
+
+  useEffect(() => {
+    const element = contentRef.current;
+    if (!element) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 900;
+      setContainerWidth(width);
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [selectedDocument, isFullscreen]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreenElement = window.document.fullscreenElement;
+      setIsFullscreen(fullscreenElement === viewerRef.current);
+    };
+
+    window.document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => window.document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };
 
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
+  const toggleFullscreen = async () => {
+    try {
+      if (!window.document.fullscreenElement && viewerRef.current) {
+        await viewerRef.current.requestFullscreen();
+        return;
+      }
+
+      if (window.document.fullscreenElement) {
+        await window.document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Error al cambiar pantalla completa:', error);
+    }
   };
 
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages));
-  };
-
-  const zoomIn = () => {
-    setScale((prev) => Math.min(prev + 0.2, 3.0));
-  };
-
-  const zoomOut = () => {
-    setScale((prev) => Math.max(prev - 0.2, 0.5));
-  };
-
-  const resetZoom = () => {
-    setScale(1.0);
-  };
-
-  if (!document) {
+  if (!selectedDocument) {
     return (
-      <div className="pdf-viewer">
+      <div className="pdf-viewer" ref={viewerRef}>
+        <div className="pdf-header">
+          <div className="pdf-header-main">
+            <button className="sidebar-toggle-button" onClick={onToggleSidebar}>
+              {isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
+            </button>
+            <h2 className="pdf-title">Visor de documentos</h2>
+          </div>
+        </div>
         <div className="no-document-selected">
           <svg width="120" height="120" viewBox="0 0 24 24" fill="none">
             <path
@@ -73,37 +111,23 @@ export default function PDFViewer({ document }: PDFViewerProps) {
   }
 
   return (
-    <div className="pdf-viewer">
+    <div className={`pdf-viewer ${isFullscreen ? 'fullscreen' : ''}`} ref={viewerRef}>
       <div className="pdf-header">
-        <h2 className="pdf-title">{document.original_name}</h2>
-        <div className="pdf-controls">
-          <div className="zoom-controls">
-            <button onClick={zoomOut} title="Alejar" disabled={scale <= 0.5}>
-              −
-            </button>
-            <button onClick={resetZoom} title="Tamaño original">
-              {Math.round(scale * 100)}%
-            </button>
-            <button onClick={zoomIn} title="Acercar" disabled={scale >= 3.0}>
-              +
-            </button>
-          </div>
+        <div className="pdf-header-main">
+          <button className="sidebar-toggle-button" onClick={onToggleSidebar}>
+            {isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
+          </button>
+          <h2 className="pdf-title">{selectedDocument.original_name}</h2>
+        </div>
 
-          <div className="page-controls">
-            <button onClick={goToPrevPage} disabled={pageNumber <= 1}>
-              ‹
-            </button>
-            <span>
-              Página {pageNumber} de {numPages}
-            </span>
-            <button onClick={goToNextPage} disabled={pageNumber >= numPages}>
-              ›
-            </button>
-          </div>
+        <div className="pdf-controls">
+          <button className="fullscreen-button" onClick={toggleFullscreen}>
+            {isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          </button>
 
           <a
             href={pdfUrl}
-            download={document.original_name}
+            download={selectedDocument.original_name}
             className="download-button"
             title="Descargar PDF"
           >
@@ -112,7 +136,7 @@ export default function PDFViewer({ document }: PDFViewerProps) {
         </div>
       </div>
 
-      <div className="pdf-content">
+      <div className="pdf-content" ref={contentRef}>
         <PDFDocument
           file={pdfUrl}
           onLoadSuccess={onDocumentLoadSuccess}
@@ -131,12 +155,15 @@ export default function PDFViewer({ document }: PDFViewerProps) {
             </div>
           }
         >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-          />
+          {Array.from({ length: numPages }, (_, index) => (
+            <Page
+              key={`page_${index + 1}`}
+              pageNumber={index + 1}
+              width={Math.max(Math.min(containerWidth - 48, 1200), 280)}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+            />
+          ))}
         </PDFDocument>
       </div>
     </div>

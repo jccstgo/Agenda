@@ -21,6 +21,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<number>(0);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,6 +86,14 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     }
   };
 
+  const handleDocumentSelect = (doc: Document) => {
+    setSelectedDocument(doc);
+
+    if (window.innerWidth <= 768) {
+      setIsSidebarVisible(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -113,19 +122,25 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         <>
           <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
-          <div className="dashboard-content">
-            <aside className="sidebar">
-              <DocumentList
-                documents={documents}
-                activeTab={activeTab}
-                selectedDocument={selectedDocument}
-                onDocumentSelect={setSelectedDocument}
-                onDocumentsChange={handleDocumentsChange}
-              />
-            </aside>
+          <div className={`dashboard-content ${isSidebarVisible ? 'sidebar-visible' : 'sidebar-hidden'}`}>
+            {isSidebarVisible && (
+              <aside className="sidebar">
+                <DocumentList
+                  documents={documents}
+                  activeTab={activeTab}
+                  selectedDocument={selectedDocument}
+                  onDocumentSelect={handleDocumentSelect}
+                  onDocumentsChange={handleDocumentsChange}
+                />
+              </aside>
+            )}
 
             <main className="main-content">
-              <PDFViewer document={selectedDocument} />
+              <PDFViewer
+                document={selectedDocument}
+                isSidebarVisible={isSidebarVisible}
+                onToggleSidebar={() => setIsSidebarVisible((current) => !current)}
+              />
             </main>
           </div>
         </>
