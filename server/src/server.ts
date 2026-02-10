@@ -9,6 +9,7 @@ import authRoutes from './routes/auth';
 import tabRoutes from './routes/tabs';
 import documentRoutes from './routes/documents';
 import adminRoutes from './routes/admin';
+import superadminRoutes from './routes/superadmin';
 
 // Inicializar base de datos
 initDatabase();
@@ -32,6 +33,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tabs', tabRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Ruta de health check
 app.get('/health', (req, res) => {

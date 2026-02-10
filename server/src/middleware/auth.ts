@@ -5,8 +5,9 @@ import { JWT_SECRET } from '../config/env';
 export interface AuthRequest extends Request {
   user?: {
     id: number;
+    userId: number;
     username: string;
-    role: string;
+    role: 'superadmin' | 'admin' | 'reader';
   };
 }
 
@@ -42,8 +43,11 @@ export const authenticateTokenFromQuery = (req: AuthRequest, res: Response, next
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: string };
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: 'superadmin' | 'admin' | 'reader' };
+    req.user = {
+      ...decoded,
+      userId: decoded.id
+    };
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
@@ -51,7 +55,8 @@ export const authenticateTokenFromQuery = (req: AuthRequest, res: Response, next
 };
 
 export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (req.user?.role !== 'admin') {
+  // Superadmin también tiene acceso a todo lo que requiere admin
+  if (req.user?.role !== 'admin' && req.user?.role !== 'superadmin') {
     return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador' });
   }
   next();

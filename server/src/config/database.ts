@@ -2,10 +2,13 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import {
   DB_PATH,
+  DEFAULT_SUPERADMIN_PASSWORD,
+  DEFAULT_SUPERADMIN_USERNAME,
   DEFAULT_ADMIN_PASSWORD,
   DEFAULT_ADMIN_USERNAME,
   DEFAULT_READER_PASSWORD,
   DEFAULT_READER_USERNAME,
+  HAS_SUPERADMIN_PASSWORD_FROM_ENV,
   HAS_ADMIN_PASSWORD_FROM_ENV,
   HAS_READER_PASSWORD_FROM_ENV,
   IS_PRODUCTION
@@ -28,9 +31,36 @@ export const initDatabase = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'reader')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      role TEXT NOT NULL CHECK(role IN ('superadmin', 'admin', 'reader')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_password_change DATETIME DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Tabla de auditoría de acciones
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      username TEXT NOT NULL,
+      action TEXT NOT NULL,
+      resource_type TEXT,
+      resource_id INTEGER,
+      resource_name TEXT,
+      details TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      timestamp_utc DATETIME DEFAULT CURRENT_TIMESTAMP,
+      timestamp_cdmx TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // Crear índices para búsquedas rápidas
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp_utc);
   `);
 
   // Tabla de pestañas/temas
@@ -63,15 +93,21 @@ export const initDatabase = () => {
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
 
   if (userCount.count === 0) {
-    if (IS_PRODUCTION && (!HAS_ADMIN_PASSWORD_FROM_ENV || !HAS_READER_PASSWORD_FROM_ENV)) {
+    if (IS_PRODUCTION && (!HAS_SUPERADMIN_PASSWORD_FROM_ENV || !HAS_ADMIN_PASSWORD_FROM_ENV || !HAS_READER_PASSWORD_FROM_ENV)) {
       throw new Error(
-        'En producción y con base vacía, define DEFAULT_ADMIN_PASSWORD y DEFAULT_READER_PASSWORD antes de iniciar.'
+        'En producción y con base vacía, define DEFAULT_SUPERADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD y DEFAULT_READER_PASSWORD antes de iniciar.'
       );
     }
 
+    const superadminPassword = bcrypt.hashSync(DEFAULT_SUPERADMIN_PASSWORD, 10);
     const adminPassword = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, 10);
     const readerPassword = bcrypt.hashSync(DEFAULT_READER_PASSWORD, 10);
 
+    db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(
+      DEFAULT_SUPERADMIN_USERNAME,
+      superadminPassword,
+      'superadmin'
+    );
     db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(
       DEFAULT_ADMIN_USERNAME,
       adminPassword,
@@ -83,7 +119,7 @@ export const initDatabase = () => {
       'reader'
     );
 
-    console.log('✓ Usuarios por defecto creados');
+    console.log('✓ Usuarios por defecto creados (superadmin, admin, reader)');
   }
 
   // Migración: renombrar usuario legado "lector" a "Director" si no existe aún

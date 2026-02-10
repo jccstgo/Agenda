@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../config/env';
+import { logAudit } from '../middleware/audit';
 
 interface Document {
   id: number;
@@ -23,6 +24,17 @@ export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
     const documents = db.prepare(
       'SELECT * FROM documents WHERE tab_id = ? ORDER BY created_at DESC'
     ).all(tabId) as Document[];
+
+    // Obtener nombre de la pestaña
+    const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(tabId) as any;
+
+    logAudit(req, {
+      action: 'LIST_DOCUMENTS',
+      resourceType: 'tab',
+      resourceId: parseInt(tabId),
+      resourceName: tab?.name,
+      details: `Consultó ${documents.length} documentos de la pestaña "${tab?.name}"`
+    });
 
     res.json(documents);
   } catch (error) {
@@ -56,6 +68,17 @@ export const uploadDocument = (req: AuthRequest, res: Response) => {
 
     const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid) as Document;
 
+    // Obtener nombre de la pestaña
+    const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(tabId) as any;
+
+    logAudit(req, {
+      action: 'UPLOAD_DOCUMENT',
+      resourceType: 'document',
+      resourceId: document.id,
+      resourceName: file.originalname,
+      details: `Subió el documento "${file.originalname}" (${(file.size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`
+    });
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Error subiendo documento:', error);
@@ -82,6 +105,17 @@ export const deleteDocument = (req: AuthRequest, res: Response) => {
     // Eliminar de la base de datos
     db.prepare('DELETE FROM documents WHERE id = ?').run(id);
 
+    // Obtener nombre de la pestaña
+    const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(document.tab_id) as any;
+
+    logAudit(req, {
+      action: 'DELETE_DOCUMENT',
+      resourceType: 'document',
+      resourceId: document.id,
+      resourceName: document.original_name,
+      details: `Eliminó el documento "${document.original_name}" de la pestaña "${tab?.name}"`
+    });
+
     res.json({ message: 'Documento eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando documento:', error);
@@ -99,6 +133,16 @@ export const getDocumentFile = (req: AuthRequest, res: Response) => {
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
     }
+
+    // Obtener nombre de la pestaña
+    const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(tabId) as any;
+
+    logAudit(req, {
+      action: 'VIEW_DOCUMENT',
+      resourceType: 'document',
+      resourceName: filename,
+      details: `Visualizó el documento "${filename}" de la pestaña "${tab?.name}"`
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);

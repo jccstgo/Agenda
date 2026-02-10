@@ -42,17 +42,26 @@ if (!IS_PRODUCTION && JWT_SECRET === 'dev-only-jwt-secret-change-me-for-producti
   console.warn('Advertencia: JWT_SECRET no configurado, se usa un secreto inseguro solo para desarrollo.');
 }
 
+const superadminUsername = process.env.DEFAULT_SUPERADMIN_USERNAME?.trim() || 'superadmin';
 const adminUsername = process.env.DEFAULT_ADMIN_USERNAME?.trim() || 'admin';
 const readerUsername = process.env.DEFAULT_READER_USERNAME?.trim() || 'Director';
+const superadminPasswordFromEnv = process.env.DEFAULT_SUPERADMIN_PASSWORD?.trim();
 const adminPasswordFromEnv = process.env.DEFAULT_ADMIN_PASSWORD?.trim();
 const readerPasswordFromEnv = process.env.DEFAULT_READER_PASSWORD?.trim();
+export const HAS_SUPERADMIN_PASSWORD_FROM_ENV = Boolean(superadminPasswordFromEnv);
 export const HAS_ADMIN_PASSWORD_FROM_ENV = Boolean(adminPasswordFromEnv);
 export const HAS_READER_PASSWORD_FROM_ENV = Boolean(readerPasswordFromEnv);
 
+export const DEFAULT_SUPERADMIN_USERNAME = superadminUsername;
 export const DEFAULT_ADMIN_USERNAME = adminUsername;
 export const DEFAULT_READER_USERNAME = readerUsername;
+export const DEFAULT_SUPERADMIN_PASSWORD = superadminPasswordFromEnv || 'superadmin123';
 export const DEFAULT_ADMIN_PASSWORD = adminPasswordFromEnv || 'admin123';
 export const DEFAULT_READER_PASSWORD = readerPasswordFromEnv || 'director123';
+
+if (IS_PRODUCTION && HAS_SUPERADMIN_PASSWORD_FROM_ENV) {
+  requireStrongPassword(DEFAULT_SUPERADMIN_PASSWORD, 'DEFAULT_SUPERADMIN_PASSWORD');
+}
 
 if (IS_PRODUCTION && HAS_ADMIN_PASSWORD_FROM_ENV) {
   requireStrongPassword(DEFAULT_ADMIN_PASSWORD, 'DEFAULT_ADMIN_PASSWORD');

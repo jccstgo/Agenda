@@ -13,15 +13,15 @@ generate_password() {
     # - 3 mayúsculas, 3 minúsculas, 3 números, 3 símbolos, 4 mixtos
 
     # Generar caracteres garantizados (SOLO símbolos seguros para env vars)
-    # Evita: $ ! ` \ & ( ) | ; < > [ ] { } ' "
-    # Usa: @ # % ^ * _ + = - .
+    # Evita: $ ! ` \ & ( ) | ; < > [ ] { } ' " #
+    # Usa: @ % ^ * _ + = - .
     local upper=$(LC_ALL=C tr -dc 'A-Z' < /dev/urandom | head -c 3)
     local lower=$(LC_ALL=C tr -dc 'a-z' < /dev/urandom | head -c 3)
     local digit=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 3)
-    local symbol=$(LC_ALL=C tr -dc '@#%^*_+=.-' < /dev/urandom | head -c 3)
+    local symbol=$(LC_ALL=C tr -dc '@%^*_+=.-' < /dev/urandom | head -c 3)
 
     # Generar caracteres adicionales para llegar a 16
-    local extra=$(LC_ALL=C tr -dc 'A-Za-z0-9@#%^*_+=.-' < /dev/urandom | head -c 4)
+    local extra=$(LC_ALL=C tr -dc 'A-Za-z0-9@%^*_+=.-' < /dev/urandom | head -c 4)
 
     # Combinar todos los caracteres
     local combined="${upper}${lower}${digit}${symbol}${extra}"
@@ -40,6 +40,12 @@ else
     JWT_SECRET=$(LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)
     echo "JWT_SECRET=$JWT_SECRET"
 fi
+echo ""
+
+# Generar contraseña para Super Admin
+echo "👑 DEFAULT_SUPERADMIN_PASSWORD (para super administrador):"
+SUPERADMIN_PASS=$(generate_password)
+echo "DEFAULT_SUPERADMIN_PASSWORD=$SUPERADMIN_PASS"
 echo ""
 
 # Generar contraseña para Admin
@@ -65,6 +71,8 @@ echo "NODE_ENV=production"
 echo "JWT_SECRET=$JWT_SECRET"
 echo "DB_PATH=/data/database.sqlite"
 echo "UPLOADS_DIR=/data/uploads"
+echo "DEFAULT_SUPERADMIN_USERNAME=superadmin"
+echo "DEFAULT_SUPERADMIN_PASSWORD=$SUPERADMIN_PASS"
 echo "DEFAULT_ADMIN_USERNAME=admin"
 echo "DEFAULT_ADMIN_PASSWORD=$ADMIN_PASS"
 echo "DEFAULT_READER_USERNAME=Director"
@@ -76,9 +84,16 @@ echo "⚠️  IMPORTANTE: Guarda estas contraseñas en un lugar seguro!"
 echo "    No podrás recuperarlas después."
 echo ""
 echo "🔑 Credenciales de acceso a tu aplicación:"
-echo "   Usuario Admin: admin"
-echo "   Contraseña Admin: $ADMIN_PASS"
 echo ""
-echo "   Usuario Director: Director"
-echo "   Contraseña Director: $DIRECTOR_PASS"
+echo "   👑 Super Administrador:"
+echo "   Usuario: superadmin"
+echo "   Contraseña: $SUPERADMIN_PASS"
+echo ""
+echo "   👤 Administrador:"
+echo "   Usuario: admin"
+echo "   Contraseña: $ADMIN_PASS"
+echo ""
+echo "   📖 Director (solo lectura):"
+echo "   Usuario: Director"
+echo "   Contraseña: $DIRECTOR_PASS"
 echo ""
