@@ -8,6 +8,7 @@ import { DB_PATH, UPLOADS_DIR, IS_PRODUCTION } from './config/env';
 import authRoutes from './routes/auth';
 import tabRoutes from './routes/tabs';
 import documentRoutes from './routes/documents';
+import adminRoutes from './routes/admin';
 
 // Inicializar base de datos
 initDatabase();
@@ -30,6 +31,7 @@ if (IS_PRODUCTION) {
 app.use('/api/auth', authRoutes);
 app.use('/api/tabs', tabRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Ruta de health check
 app.get('/health', (req, res) => {
