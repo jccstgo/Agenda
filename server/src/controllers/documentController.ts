@@ -17,13 +17,34 @@ interface Document {
   created_at: string;
 }
 
+const normalizeOriginalName = (value: string): string => {
+  const normalized = value.normalize('NFC');
+
+  // Corregir casos comunes de mojibake UTF-8 interpretado como latin1 (ej: "PlaneaciÃ³n")
+  if (!/[ÃÂâ]/.test(normalized)) {
+    return normalized;
+  }
+
+  const decoded = Buffer.from(normalized, 'latin1').toString('utf8').normalize('NFC');
+  return decoded.includes('�') ? normalized : decoded;
+};
+
 export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
   try {
     const { tabId } = req.params;
 
-    const documents = db.prepare(
+    const documentsFromDb = db.prepare(
       'SELECT * FROM documents WHERE tab_id = ? ORDER BY lower(original_name) ASC, id ASC'
     ).all(tabId) as Document[];
+    const documents = documentsFromDb
+      .map((doc) => ({
+        ...doc,
+        original_name: normalizeOriginalName(doc.original_name)
+      }))
+      .sort(
+        (a, b) =>
+          a.original_name.localeCompare(b.original_name, 'es', { sensitivity: 'base' }) || a.id - b.id
+      );
 
     // Obtener nombre de la pestaña
     const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(tabId) as any;
@@ -66,10 +87,11 @@ export const uploadDocuments = (req: AuthRequest, res: Response) => {
     const uploadTransaction = db.transaction((filesToInsert: Express.Multer.File[]) => {
       const createdDocuments: Document[] = [];
       filesToInsert.forEach((file) => {
+        const originalName = normalizeOriginalName(file.originalname);
         const result = insertDocument.run(
           tabId,
           file.filename,
-          file.originalname,
+          originalName,
           file.path,
           file.size,
           userId

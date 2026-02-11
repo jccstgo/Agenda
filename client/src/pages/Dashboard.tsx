@@ -55,7 +55,20 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     try {
       const docs = await getDocuments(tabId);
       setDocuments(docs);
-      setSelectedDocument(null);
+      setSelectedDocument((current) => {
+        if (docs.length === 0) {
+          return null;
+        }
+
+        if (current && current.tab_id === tabId) {
+          const stillExists = docs.find((doc) => doc.id === current.id);
+          if (stillExists) {
+            return stillExists;
+          }
+        }
+
+        return docs[0];
+      });
     } catch (error) {
       console.error('Error cargando documentos:', error);
     }
