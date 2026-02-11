@@ -144,15 +144,26 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                 title={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
                 aria-label={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
               >
-                <svg width="7" height="14" viewBox="0 0 7 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d={isSidebarVisible ? 'M6 1L1 7L6 13' : 'M1 1L6 7L1 13'}
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <span className="sidebar-toggle-icon" aria-hidden="true">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12.5 4.5L7 10L12.5 15.5"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="sidebar-toggle-label">
+                  {isSidebarVisible ? 'Ocultar' : 'Mostrar'}
+                </span>
               </button>
 
               {isSidebarVisible && (
