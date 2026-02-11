@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import type { Document } from '../types';
-import { uploadDocument, deleteDocument } from '../services/api';
+import { uploadDocuments, deleteDocument } from '../services/api';
 import { isAdmin, getUser } from '../utils/auth';
 import '../styles/DocumentList.css';
 
@@ -25,17 +25,21 @@ export default function DocumentList({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
 
-    if (file.type !== 'application/pdf') {
+    const invalidFiles = files.filter(
+      (file) => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')
+    );
+
+    if (invalidFiles.length > 0) {
       alert('Solo se permiten archivos PDF');
       return;
     }
 
     setUploading(true);
     try {
-      await uploadDocument(activeTab, file);
+      await uploadDocuments(activeTab, files);
       onDocumentsChange();
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -87,12 +91,13 @@ export default function DocumentList({
               ref={fileInputRef}
               type="file"
               accept="application/pdf"
+              multiple
               onChange={handleUpload}
               style={{ display: 'none' }}
               id="file-upload"
             />
             <label htmlFor="file-upload" className="upload-button">
-              {uploading ? 'Subiendo...' : '+ Subir PDF'}
+              {uploading ? 'Subiendo...' : '+ Subir PDFs'}
             </label>
           </div>
         )}
@@ -102,7 +107,7 @@ export default function DocumentList({
         {documents.length === 0 ? (
           <div className="no-documents">
             <p>No hay documentos en esta sección</p>
-            {isUserAdmin && <p className="hint">Sube un PDF para comenzar</p>}
+            {isUserAdmin && <p className="hint">Sube uno o varios PDFs para comenzar</p>}
           </div>
         ) : (
           <div className="documents-grid">

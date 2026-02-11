@@ -61,11 +61,11 @@ export const getDocuments = async (tabId: number): Promise<Document[]> => {
   return response.data;
 };
 
-export const uploadDocument = async (tabId: number, file: File): Promise<Document> => {
+export const uploadDocuments = async (tabId: number, files: File[]): Promise<Document[]> => {
   const formData = new FormData();
-  formData.append('file', file);
+  files.forEach((file) => formData.append('files', file));
 
-  const response = await api.post<Document>(`/documents/${tabId}`, formData, {
+  const response = await api.post<Document[]>(`/documents/${tabId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

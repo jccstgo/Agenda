@@ -22,7 +22,7 @@ export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
     const { tabId } = req.params;
 
     const documents = db.prepare(
-      'SELECT * FROM documents WHERE tab_id = ? ORDER BY created_at DESC'
+      'SELECT * FROM documents WHERE tab_id = ? ORDER BY lower(original_name) ASC, id ASC'
     ).all(tabId) as Document[];
 
     // Obtener nombre de la pestaña
@@ -43,43 +43,59 @@ export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const uploadDocument = (req: AuthRequest, res: Response) => {
+export const uploadDocuments = (req: AuthRequest, res: Response) => {
   try {
     const { tabId } = req.params;
-    const file = req.file;
+    const files = Array.isArray(req.files)
+      ? req.files
+      : req.files
+      ? Object.values(req.files as Record<string, Express.Multer.File[]>).flat()
+      : [];
 
-    if (!file) {
-      return res.status(400).json({ error: 'No se proporcionó ningún archivo' });
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No se proporcionaron archivos' });
     }
 
     const userId = req.user?.id;
-
-    const result = db.prepare(`
+    const insertDocument = db.prepare(`
       INSERT INTO documents (tab_id, filename, original_name, file_path, file_size, uploaded_by)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      tabId,
-      file.filename,
-      file.originalname,
-      file.path,
-      file.size,
-      userId
-    );
+    `);
+    const getDocumentById = db.prepare('SELECT * FROM documents WHERE id = ?');
 
-    const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid) as Document;
+    const uploadTransaction = db.transaction((filesToInsert: Express.Multer.File[]) => {
+      const createdDocuments: Document[] = [];
+      filesToInsert.forEach((file) => {
+        const result = insertDocument.run(
+          tabId,
+          file.filename,
+          file.originalname,
+          file.path,
+          file.size,
+          userId
+        );
+        const createdDocument = getDocumentById.get(result.lastInsertRowid) as Document;
+        createdDocuments.push(createdDocument);
+      });
+      return createdDocuments;
+    });
+
+    const createdDocuments = uploadTransaction(files);
 
     // Obtener nombre de la pestaña
     const tab = db.prepare('SELECT name FROM tabs WHERE id = ?').get(tabId) as any;
 
-    logAudit(req, {
-      action: 'UPLOAD_DOCUMENT',
-      resourceType: 'document',
-      resourceId: document.id,
-      resourceName: file.originalname,
-      details: `Subió el documento "${file.originalname}" (${(file.size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`
+    createdDocuments.forEach((document) => {
+      logAudit(req, {
+        action: 'UPLOAD_DOCUMENT',
+        resourceType: 'document',
+        resourceId: document.id,
+        resourceName: document.original_name,
+        details: `Subió el documento "${document.original_name}" (${(document.file_size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`
+      });
     });
 
-    res.status(201).json(document);
+    res.status(201).json(createdDocuments);
   } catch (error) {
     console.error('Error subiendo documento:', error);
     res.status(500).json({ error: 'Error subiendo documento' });
