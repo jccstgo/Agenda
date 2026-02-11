@@ -37,6 +37,18 @@ export const initDatabase = () => {
     )
   `);
 
+  // Migración: asegurar columna last_password_change en instalaciones antiguas
+  const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{
+    name: string;
+  }>;
+  const hasLastPasswordChange = userColumns.some((column) => column.name === 'last_password_change');
+
+  if (!hasLastPasswordChange) {
+    db.exec('ALTER TABLE users ADD COLUMN last_password_change DATETIME');
+    db.exec("UPDATE users SET last_password_change = CURRENT_TIMESTAMP WHERE last_password_change IS NULL");
+    console.log('✓ Migración aplicada: columna users.last_password_change agregada');
+  }
+
   // Tabla de auditoría de acciones
   db.exec(`
     CREATE TABLE IF NOT EXISTS audit_logs (

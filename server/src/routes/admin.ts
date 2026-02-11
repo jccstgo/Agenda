@@ -58,9 +58,12 @@ router.post('/users/reset-default-passwords', authenticateToken, requireAdmin, (
       'SELECT id, username, role FROM users WHERE lower(username) = lower(?) AND role = ?'
     );
     const findFirstByRole = db.prepare('SELECT id, username, role FROM users WHERE role = ? ORDER BY id ASC LIMIT 1');
-    const updatePassword = db.prepare(
-      'UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?'
-    );
+    const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+    const hasLastPasswordChange = userColumns.some((column) => column.name === 'last_password_change');
+
+    const updatePassword = hasLastPasswordChange
+      ? db.prepare('UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?')
+      : db.prepare('UPDATE users SET password = ? WHERE id = ?');
 
     const resolvedUsers = targets.map((target) => {
       const exact = findByUsernameAndRole.get(target.preferredUsername, target.role) as
