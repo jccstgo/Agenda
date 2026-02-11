@@ -134,6 +134,61 @@ export const initDatabase = () => {
     console.log('✓ Usuarios por defecto creados (superadmin, admin, reader)');
   }
 
+  // Migración: asegurar que exista un superadmin utilizable y sincronizado con variables Railway
+  const findUserByUsername = db.prepare('SELECT id FROM users WHERE lower(username) = lower(?)');
+  const findFirstSuperadmin = db.prepare(
+    'SELECT id, username, password FROM users WHERE role = ? ORDER BY id ASC LIMIT 1'
+  );
+
+  let superadminUser = findFirstSuperadmin.get('superadmin') as
+    | { id: number; username: string; password: string }
+    | undefined;
+
+  if (!superadminUser) {
+    let candidateUsername = DEFAULT_SUPERADMIN_USERNAME;
+    let suffix = 1;
+
+    while (findUserByUsername.get(candidateUsername)) {
+      candidateUsername = `${DEFAULT_SUPERADMIN_USERNAME}-${suffix}`;
+      suffix += 1;
+    }
+
+    const createdPassword = bcrypt.hashSync(DEFAULT_SUPERADMIN_PASSWORD, 10);
+    const insertResult = db
+      .prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+      .run(candidateUsername, createdPassword, 'superadmin');
+
+    superadminUser = {
+      id: Number(insertResult.lastInsertRowid),
+      username: candidateUsername,
+      password: createdPassword
+    };
+
+    console.log(`✓ Superadmin recreado automáticamente con usuario "${candidateUsername}"`);
+  }
+
+  // Si el username por defecto está libre, lo normalizamos al nombre esperado para acceso predecible
+  if (
+    superadminUser.username.toLowerCase() !== DEFAULT_SUPERADMIN_USERNAME.toLowerCase() &&
+    !findUserByUsername.get(DEFAULT_SUPERADMIN_USERNAME)
+  ) {
+    db.prepare('UPDATE users SET username = ? WHERE id = ?').run(DEFAULT_SUPERADMIN_USERNAME, superadminUser.id);
+    superadminUser = {
+      ...superadminUser,
+      username: DEFAULT_SUPERADMIN_USERNAME
+    };
+    console.log(`✓ Usuario superadmin normalizado a "${DEFAULT_SUPERADMIN_USERNAME}"`);
+  }
+
+  // Si Railway define password para superadmin, lo sincronizamos para asegurar acceso
+  if (HAS_SUPERADMIN_PASSWORD_FROM_ENV && !bcrypt.compareSync(DEFAULT_SUPERADMIN_PASSWORD, superadminUser.password)) {
+    db.prepare('UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?').run(
+      bcrypt.hashSync(DEFAULT_SUPERADMIN_PASSWORD, 10),
+      superadminUser.id
+    );
+    console.log('✓ Contraseña de superadmin sincronizada con DEFAULT_SUPERADMIN_PASSWORD');
+  }
+
   // Migración: renombrar usuario legado "lector" a "Director" si no existe aún
   const existingDirector = db
     .prepare('SELECT id FROM users WHERE lower(username) = lower(?)')

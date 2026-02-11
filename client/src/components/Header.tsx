@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import { clearAuth, getUser } from '../utils/auth';
-import { resetDefaultPasswords } from '../services/api';
 import '../styles/Header.css';
 
 interface HeaderProps {
@@ -17,34 +15,10 @@ export default function Header({
   onToggleThemeSettings
 }: HeaderProps) {
   const user = getUser();
-  const [resettingPasswords, setResettingPasswords] = useState(false);
 
   const handleLogout = () => {
     clearAuth();
     onLogout();
-  };
-
-  const handleResetDefaultPasswords = async () => {
-    const confirmed = confirm(
-      'Esta acción reseteará contraseñas de superadmin/admin/Director a los valores por defecto definidos en Railway. ¿Desea continuar?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setResettingPasswords(true);
-    try {
-      const response = await resetDefaultPasswords();
-      const updatedUsers = response.users.map((entry) => `${entry.username} (${entry.role})`).join(', ');
-      alert(
-        `Proceso completado.\n\n${response.message}\nUsuarios actualizados: ${updatedUsers}\n\nUse los valores DEFAULT_*_PASSWORD en Railway para iniciar sesión.`
-      );
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'No se pudieron resetear las contraseñas por defecto.');
-    } finally {
-      setResettingPasswords(false);
-    }
   };
 
   return (
@@ -67,16 +41,6 @@ export default function Header({
           </span>
         </div>
         <div className="header-actions">
-          {user?.role === 'admin' && (
-            <button
-              onClick={handleResetDefaultPasswords}
-              className="reset-passwords-button"
-              disabled={resettingPasswords}
-              title="Acción temporal de una sola ocasión"
-            >
-              {resettingPasswords ? 'Reseteando...' : 'Reset Passwords (Temporal)'}
-            </button>
-          )}
           {isAdmin && onToggleThemeSettings && (
             <button
               onClick={onToggleThemeSettings}

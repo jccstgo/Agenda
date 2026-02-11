@@ -1,19 +1,8 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import bcrypt from 'bcryptjs';
-import db from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { UPLOADS_DIR } from '../config/env';
-import {
-  DEFAULT_SUPERADMIN_PASSWORD,
-  DEFAULT_SUPERADMIN_USERNAME,
-  DEFAULT_ADMIN_PASSWORD,
-  DEFAULT_ADMIN_USERNAME,
-  DEFAULT_READER_PASSWORD,
-  DEFAULT_READER_USERNAME
-} from '../config/env';
-import { logAudit } from '../middleware/audit';
 
 const router = express.Router();
 
@@ -24,112 +13,6 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
   }
   next();
 };
-
-// Endpoint temporal: resetear contraseñas a valores por defecto de variables Railway
-router.post('/users/reset-default-passwords', authenticateToken, requireAdmin, (req, res) => {
-  try {
-    const confirmation = req.body?.confirmation;
-
-    if (confirmation !== 'RESET_DEFAULT_PASSWORDS') {
-      return res.status(400).json({
-        error: 'Confirmación inválida. Reintente la acción desde el botón de administración.'
-      });
-    }
-
-    const targets = [
-      {
-        role: 'superadmin',
-        preferredUsername: DEFAULT_SUPERADMIN_USERNAME,
-        password: DEFAULT_SUPERADMIN_PASSWORD
-      },
-      {
-        role: 'admin',
-        preferredUsername: DEFAULT_ADMIN_USERNAME,
-        password: DEFAULT_ADMIN_PASSWORD
-      },
-      {
-        role: 'reader',
-        preferredUsername: DEFAULT_READER_USERNAME,
-        password: DEFAULT_READER_PASSWORD
-      }
-    ] as const;
-
-    const findByUsernameAndRole = db.prepare(
-      'SELECT id, username, role FROM users WHERE lower(username) = lower(?) AND role = ?'
-    );
-    const findFirstByRole = db.prepare('SELECT id, username, role FROM users WHERE role = ? ORDER BY id ASC LIMIT 1');
-    const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
-    const hasLastPasswordChange = userColumns.some((column) => column.name === 'last_password_change');
-
-    const updatePassword = hasLastPasswordChange
-      ? db.prepare('UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?')
-      : db.prepare('UPDATE users SET password = ? WHERE id = ?');
-
-    const resolvedUsers = targets.map((target) => {
-      const exact = findByUsernameAndRole.get(target.preferredUsername, target.role) as
-        | { id: number; username: string; role: string }
-        | undefined;
-
-      if (exact) {
-        return { ...exact, targetPassword: target.password };
-      }
-
-      const fallback = findFirstByRole.get(target.role) as
-        | { id: number; username: string; role: string }
-        | undefined;
-
-      if (fallback) {
-        return { ...fallback, targetPassword: target.password };
-      }
-
-      return null;
-    });
-
-    const usersToUpdate = resolvedUsers.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-    const missingRoles = targets
-      .filter((_, index) => resolvedUsers[index] === null)
-      .map((target) => target.role);
-
-    if (usersToUpdate.length === 0) {
-      return res.status(404).json({
-        error: 'No se encontraron usuarios para resetear contraseñas.'
-      });
-    }
-
-    const updateTransaction = db.transaction((users: typeof usersToUpdate) => {
-      users.forEach((user) => {
-        const hashedPassword = bcrypt.hashSync(user.targetPassword, 10);
-        updatePassword.run(hashedPassword, user.id);
-      });
-    });
-
-    updateTransaction(usersToUpdate);
-
-    logAudit(req, {
-      action: 'RESET_DEFAULT_PASSWORDS',
-      resourceType: 'user',
-      details: `Reseteó contraseñas por defecto Railway para usuarios: ${usersToUpdate
-        .map((user) => `${user.username}(${user.role})`)
-        .join(', ')}${missingRoles.length > 0 ? `. Roles faltantes: ${missingRoles.join(', ')}` : ''}`
-    });
-
-    res.json({
-      success: true,
-      message:
-        missingRoles.length > 0
-          ? `Contraseñas reseteadas para roles disponibles. No se encontraron usuarios para: ${missingRoles.join(', ')}.`
-          : 'Contraseñas reseteadas a valores por defecto de Railway.',
-      users: usersToUpdate.map((user) => ({
-        id: user.id,
-        username: user.username,
-        role: user.role
-      }))
-    });
-  } catch (error: any) {
-    console.error('Error reseteando contraseñas por defecto:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Listar contenido del volumen
 router.get('/volume/files', authenticateToken, requireAdmin, (req, res) => {
