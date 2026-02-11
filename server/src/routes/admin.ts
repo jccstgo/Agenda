@@ -85,17 +85,16 @@ router.post('/users/reset-default-passwords', authenticateToken, requireAdmin, (
       return null;
     });
 
+    const usersToUpdate = resolvedUsers.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
     const missingRoles = targets
       .filter((_, index) => resolvedUsers[index] === null)
       .map((target) => target.role);
 
-    if (missingRoles.length > 0) {
+    if (usersToUpdate.length === 0) {
       return res.status(404).json({
-        error: `No se encontraron usuarios para los roles: ${missingRoles.join(', ')}`
+        error: 'No se encontraron usuarios para resetear contraseñas.'
       });
     }
-
-    const usersToUpdate = resolvedUsers.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
     const updateTransaction = db.transaction((users: typeof usersToUpdate) => {
       users.forEach((user) => {
@@ -111,12 +110,15 @@ router.post('/users/reset-default-passwords', authenticateToken, requireAdmin, (
       resourceType: 'user',
       details: `Reseteó contraseñas por defecto Railway para usuarios: ${usersToUpdate
         .map((user) => `${user.username}(${user.role})`)
-        .join(', ')}`
+        .join(', ')}${missingRoles.length > 0 ? `. Roles faltantes: ${missingRoles.join(', ')}` : ''}`
     });
 
     res.json({
       success: true,
-      message: 'Contraseñas reseteadas a valores por defecto de Railway.',
+      message:
+        missingRoles.length > 0
+          ? `Contraseñas reseteadas para roles disponibles. No se encontraron usuarios para: ${missingRoles.join(', ')}.`
+          : 'Contraseñas reseteadas a valores por defecto de Railway.',
       users: usersToUpdate.map((user) => ({
         id: user.id,
         username: user.username,
