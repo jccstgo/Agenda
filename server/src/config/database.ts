@@ -37,6 +37,63 @@ export const initDatabase = () => {
     )
   `);
 
+  // Migración: algunas instalaciones antiguas tienen CHECK(role IN ('admin','reader'))
+  // y no permiten insertar superadmin. Recrear tabla conservando datos.
+  const usersTableInfo = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'")
+    .get() as { sql: string } | undefined;
+  const usersTableSql = usersTableInfo?.sql?.toLowerCase() || '';
+  const supportsSuperadminRole = usersTableSql.includes("'superadmin'");
+
+  if (!supportsSuperadminRole) {
+    const legacyColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+    const hasCreatedAtLegacy = legacyColumns.some((column) => column.name === 'created_at');
+    const hasLastPasswordChangeLegacy = legacyColumns.some((column) => column.name === 'last_password_change');
+
+    const createdAtExpr = hasCreatedAtLegacy ? 'COALESCE(created_at, CURRENT_TIMESTAMP)' : 'CURRENT_TIMESTAMP';
+    const legacyCreatedAtReference = hasCreatedAtLegacy ? 'created_at' : 'CURRENT_TIMESTAMP';
+    const lastPasswordChangeExpr = hasLastPasswordChangeLegacy
+      ? `COALESCE(last_password_change, ${legacyCreatedAtReference}, CURRENT_TIMESTAMP)`
+      : createdAtExpr;
+
+    const migrateUsersTable = db.transaction(() => {
+      db.exec('ALTER TABLE users RENAME TO users_legacy');
+      db.exec(`
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('superadmin', 'admin', 'reader')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_password_change DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.exec(`
+        INSERT INTO users (id, username, password, role, created_at, last_password_change)
+        SELECT
+          id,
+          username,
+          password,
+          CASE
+            WHEN role IN ('superadmin', 'admin', 'reader') THEN role
+            ELSE 'reader'
+          END,
+          ${createdAtExpr},
+          ${lastPasswordChangeExpr}
+        FROM users_legacy
+      `);
+      db.exec('DROP TABLE users_legacy');
+    });
+
+    db.pragma('foreign_keys = OFF');
+    try {
+      migrateUsersTable();
+      console.log('✓ Migración aplicada: tabla users actualizada para soportar rol superadmin');
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+  }
+
   // Migración: asegurar columna last_password_change en instalaciones antiguas
   const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{
     name: string;

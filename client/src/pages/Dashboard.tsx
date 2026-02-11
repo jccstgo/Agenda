@@ -161,9 +161,6 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                     />
                   </svg>
                 </span>
-                <span className="sidebar-toggle-label">
-                  {isSidebarVisible ? 'Ocultar' : 'Mostrar'}
-                </span>
               </button>
 
               {isSidebarVisible && (
