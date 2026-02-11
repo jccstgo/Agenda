@@ -1,7 +1,7 @@
 export interface User {
   id: number;
   username: string;
-  role: 'admin' | 'reader';
+  role: 'superadmin' | 'admin' | 'reader';
 }
 
 export interface LoginResponse {

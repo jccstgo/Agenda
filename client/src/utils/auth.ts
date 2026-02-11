@@ -20,5 +20,5 @@ export const clearAuth = () => {
 };
 
 export const isAdmin = (user: User | null): boolean => {
-  return user?.role === 'admin';
+  return user?.role === 'admin' || user?.role === 'superadmin';
 };

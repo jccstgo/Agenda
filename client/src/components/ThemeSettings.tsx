@@ -106,7 +106,9 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
       return;
     }
 
-    const confirmed = confirm(`¿Desea eliminar el tema "${tabName}"?`);
+    const confirmed = confirm(
+      `¿Desea eliminar el tema "${tabName}"?\n\nSe eliminarán también todos los documentos asociados a este tema.`
+    );
     if (!confirmed) {
       return;
     }

@@ -136,6 +136,7 @@ export default function DocumentList({
 
                 {isUserAdmin && (
                   <button
+                    type="button"
                     className="delete-button"
                     onClick={(e) => {
                       e.stopPropagation();

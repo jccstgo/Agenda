@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import db from '../config/database';
+import fs from 'fs';
 import type { AuthRequest } from '../middleware/auth';
 
 interface Tab {
@@ -11,6 +12,11 @@ interface Tab {
 interface TabUpdateInput {
   id: number;
   name: string;
+}
+
+interface TabDocumentFile {
+  id: number;
+  file_path: string;
 }
 
 const getOrderedTabs = () => {
@@ -158,16 +164,18 @@ export const deleteTab = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Debe existir al menos un tema' });
     }
 
-    const documentCount = db.prepare('SELECT COUNT(*) as count FROM documents WHERE tab_id = ?').get(tabId) as {
-      count: number;
-    };
-    if (documentCount.count > 0) {
-      return res.status(400).json({
-        error: 'No se puede eliminar un tema que contiene documentos. Elimine primero los documentos.'
-      });
-    }
+    const tabDocuments = db.prepare('SELECT id, file_path FROM documents WHERE tab_id = ?').all(tabId) as TabDocumentFile[];
 
     const deleteTransaction = db.transaction((id: number) => {
+      const deleteDocuments = db.prepare('DELETE FROM documents WHERE tab_id = ?');
+
+      for (const document of tabDocuments) {
+        if (fs.existsSync(document.file_path)) {
+          fs.unlinkSync(document.file_path);
+        }
+      }
+
+      deleteDocuments.run(id);
       db.prepare('DELETE FROM tabs WHERE id = ?').run(id);
 
       const remainingTabs = db.prepare('SELECT id FROM tabs ORDER BY order_index ASC, id ASC').all() as {

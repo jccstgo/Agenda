@@ -145,7 +145,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
+  opacity: 0.92;
+  z-index: 5;
   transition: all 0.3s;
 }
 
@@ -167,6 +168,12 @@
     font-size: 15px;
   }
 
+  .delete-button {
+    opacity: 1;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
   .delete-button {
     opacity: 1;
   }
