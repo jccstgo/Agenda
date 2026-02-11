@@ -34,6 +34,23 @@ export const verifyToken = async (): Promise<boolean> => {
   }
 };
 
+export interface ResetDefaultPasswordsResponse {
+  success: boolean;
+  message: string;
+  users: Array<{
+    id: number;
+    username: string;
+    role: 'superadmin' | 'admin' | 'reader';
+  }>;
+}
+
+export const resetDefaultPasswords = async (): Promise<ResetDefaultPasswordsResponse> => {
+  const response = await api.post<ResetDefaultPasswordsResponse>('/admin/users/reset-default-passwords', {
+    confirmation: 'RESET_DEFAULT_PASSWORDS'
+  });
+  return response.data;
+};
+
 // Tabs
 export const getTabs = async (): Promise<Tab[]> => {
   const response = await api.get<Tab[]>('/tabs');
