@@ -57,6 +57,47 @@ export default function PDFViewer({ document: selectedDocument }: PDFViewerProps
     return () => window.document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  useEffect(() => {
+    const element = contentRef.current;
+    if (!element || !isFullscreen) {
+      return;
+    }
+
+    let touchStartY = 0;
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+      touchStartY = event.touches[0].clientY;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+
+      const currentY = event.touches[0].clientY;
+      const deltaY = currentY - touchStartY;
+      const atTop = element.scrollTop <= 0;
+      const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1;
+      const isPullingDownAtTop = atTop && deltaY > 0;
+      const isPushingUpAtBottom = atBottom && deltaY < 0;
+
+      if (isPullingDownAtTop || isPushingUpAtBottom) {
+        event.preventDefault();
+      }
+    };
+
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      element.removeEventListener('touchstart', onTouchStart);
+      element.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [isFullscreen]);
+
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };

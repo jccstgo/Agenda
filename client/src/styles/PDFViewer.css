@@ -12,6 +12,8 @@
 .pdf-viewer.fullscreen {
   background-color: #1f1f1f;
   background-image: none;
+  overscroll-behavior: none;
+  touch-action: pan-y pinch-zoom;
 }
 
 .pdf-viewer:fullscreen,
@@ -133,6 +135,8 @@
   justify-content: center;
   align-items: flex-start;
   padding: 24px;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .react-pdf__Document {
