@@ -143,8 +143,6 @@ export default function PDFViewer({ document: selectedDocument }: PDFViewerProps
   return (
     <div className={`pdf-viewer ${isFullscreen ? 'fullscreen' : ''}`} ref={viewerRef}>
       <div className="pdf-header">
-        <h2 className="pdf-title">{selectedDocument.original_name}</h2>
-
         <div className="pdf-controls">
           <button className="fullscreen-button" onClick={toggleFullscreen}>
             {isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
