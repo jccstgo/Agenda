@@ -153,7 +153,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                     xmlns="http://www.w3.org/2000/svg"
                   >
                     <path
-                      d="M12.5 4.5L7 10L12.5 15.5"
+                      d={isSidebarVisible ? 'M12.5 4.5L7 10L12.5 15.5' : 'M7.5 4.5L13 10L7.5 15.5'}
                       stroke="currentColor"
                       strokeWidth="2.2"
                       strokeLinecap="round"
