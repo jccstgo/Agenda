@@ -139,12 +139,20 @@ export default function Dashboard({ onLogout }: DashboardProps) {
             <aside className={`sidebar ${isSidebarVisible ? 'visible' : 'collapsed'}`}>
               <button
                 type="button"
-                className="sidebar-toggle-handle"
+                className={`sidebar-toggle-handle ${isSidebarVisible ? '' : 'sidebar-toggle-collapsed'}`}
                 onClick={() => setIsSidebarVisible((current) => !current)}
                 title={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
                 aria-label={isSidebarVisible ? 'Ocultar documentos' : 'Mostrar documentos'}
               >
-                {isSidebarVisible ? '‹' : '›'}
+                <svg width="7" height="14" viewBox="0 0 7 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d={isSidebarVisible ? 'M6 1L1 7L6 13' : 'M1 1L6 7L1 13'}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
 
               {isSidebarVisible && (
