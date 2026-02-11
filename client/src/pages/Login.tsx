@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { login, resetDefaultPasswordsFromLogin } from '../services/api';
+import { login } from '../services/api';
 import { saveAuth } from '../utils/auth';
 import '../styles/Login.css';
 
@@ -13,7 +13,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -28,30 +27,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       setError(err.response?.data?.error || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleResetPasswords = async () => {
-    const confirmed = confirm(
-      'Esta acción temporal reseteará contraseñas por defecto para superadmin, admin y Director. ¿Desea continuar?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setError('');
-    setResetting(true);
-    try {
-      const response = await resetDefaultPasswordsFromLogin();
-      const usersText = response.users.map((entry) => `${entry.username} (${entry.role})`).join(', ');
-      alert(
-        `${response.message}\n\nUsuarios sincronizados: ${usersText}\n\nIntente iniciar sesión nuevamente con las credenciales por defecto de Railway.`
-      );
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'No se pudieron resetear las credenciales.');
-    } finally {
-      setResetting(false);
     }
   };
 
@@ -97,15 +72,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-          </button>
-
-          <button
-            type="button"
-            className="login-reset-button"
-            onClick={handleResetPasswords}
-            disabled={loading || resetting}
-          >
-            {resetting ? 'Reseteando credenciales...' : 'Reset Passwords (Temporal)'}
           </button>
         </form>
 

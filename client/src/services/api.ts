@@ -34,7 +34,7 @@ export const verifyToken = async (): Promise<boolean> => {
   }
 };
 
-export interface ResetDefaultPasswordsFromLoginResponse {
+export interface ResetDefaultPasswordsResponse {
   success: boolean;
   message: string;
   users: Array<{
@@ -44,9 +44,9 @@ export interface ResetDefaultPasswordsFromLoginResponse {
   }>;
 }
 
-export const resetDefaultPasswordsFromLogin = async (): Promise<ResetDefaultPasswordsFromLoginResponse> => {
-  const response = await api.post<ResetDefaultPasswordsFromLoginResponse>('/auth/reset-default-passwords', {
-    confirmation: 'RESET_DEFAULT_PASSWORDS_FROM_LOGIN'
+export const resetDefaultPasswordsAsSuperadmin = async (): Promise<ResetDefaultPasswordsResponse> => {
+  const response = await api.post<ResetDefaultPasswordsResponse>('/superadmin/users/reset-default-passwords', {
+    confirmation: 'RESET_DEFAULT_PASSWORDS_SUPERADMIN'
   });
   return response.data;
 };
