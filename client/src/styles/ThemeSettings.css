@@ -1,18 +1,22 @@
 .theme-settings {
   background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(28, 30, 35, 0.08);
-  padding: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 10px 30px rgba(28, 30, 35, 0.06);
+  padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .theme-settings-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   color: #6b0f1a;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .theme-settings-list {
@@ -27,17 +31,24 @@
 .theme-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  padding: 8px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background-color: #fafafa;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background-color: #fafbfc;
+  transition: all var(--transition-fast);
+}
+
+.theme-row:hover {
+  background-color: #f5f6f8;
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .theme-row.active {
-  border-color: #9b2743;
-  background-color: #fdf0f3;
+  border-color: rgba(155, 39, 67, 0.2);
+  background-color: #fef7f8;
+  box-shadow: 0 1px 4px rgba(155, 39, 67, 0.06);
 }
 
 .theme-row-move {
@@ -47,37 +58,65 @@
 }
 
 .theme-icon-button {
-  width: 28px;
-  height: 24px;
-  border: 1px solid #d0d0d0;
+  width: 30px;
+  height: 26px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   background-color: white;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.theme-icon-button:hover:not(:disabled) {
+  background-color: #6B0F1A;
+  color: white;
+  border-color: #6B0F1A;
 }
 
 .theme-icon-button:disabled {
-  opacity: 0.5;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .theme-name-input {
   width: 100%;
-  min-height: 38px;
-  border: 1px solid #cfcfcf;
-  border-radius: 6px;
-  padding: 8px 10px;
+  min-height: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
   font-size: 14px;
+  transition: all var(--transition-fast);
+  background-color: white;
+}
+
+.theme-name-input:focus {
+  border-color: #9B2743;
+  box-shadow: 0 0 0 3px rgba(155, 39, 67, 0.08);
+  outline: none;
 }
 
 .theme-delete-button {
-  min-height: 32px;
-  border: 1px solid #e3b4bc;
-  color: #8a1026;
-  background-color: #fff7f8;
-  border-radius: 6px;
-  padding: 0 10px;
+  min-height: 34px;
+  border: 1px solid rgba(220, 53, 69, 0.15);
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.04);
+  border-radius: 8px;
+  padding: 0 12px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.theme-delete-button:hover:not(:disabled) {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2);
 }
 
 .theme-delete-button:disabled {
@@ -92,14 +131,22 @@
 }
 
 .theme-create-button {
-  min-height: 38px;
+  min-height: 40px;
   border: none;
   background: linear-gradient(135deg, #9b2743 0%, #b83454 100%);
   color: white;
-  border-radius: 6px;
-  padding: 0 14px;
+  border-radius: 8px;
+  padding: 0 18px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-normal);
+  box-shadow: 0 2px 4px rgba(155, 39, 67, 0.15);
+}
+
+.theme-create-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(155, 39, 67, 0.25);
 }
 
 .theme-create-button:disabled {
@@ -108,13 +155,22 @@
 }
 
 .theme-save-button {
-  min-height: 40px;
+  min-height: 44px;
   border: none;
   background: linear-gradient(135deg, #6b0f1a 0%, #8b1f31 100%);
   color: white;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  transition: all var(--transition-normal);
+  box-shadow: 0 2px 8px rgba(107, 15, 26, 0.2);
+}
+
+.theme-save-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(107, 15, 26, 0.3);
 }
 
 .theme-save-button:disabled {
@@ -125,7 +181,7 @@
 @media (max-width: 768px) {
   .theme-settings {
     padding: 14px;
-    border-radius: 12px;
+    border-radius: 14px;
   }
 
   .theme-settings-header h2 {

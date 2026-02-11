@@ -22,9 +22,10 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  border-right: 1px solid #e3e3e3;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
   position: relative;
-  background-color: #f8f9fb;
+  background-color: #fafbfc;
+  transition: all var(--transition-slow);
 }
 
 .sidebar.collapsed {
@@ -35,26 +36,32 @@
 .sidebar-toggle-handle {
   position: absolute;
   top: 50%;
-  right: -12px;
+  right: -14px;
   transform: translateY(-50%);
-  width: 24px;
-  height: 64px;
-  border: 1px solid #d8d8d8;
+  width: 28px;
+  height: 72px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-left: none;
-  border-radius: 0 10px 10px 0;
-  background-color: rgba(255, 255, 255, 0.92);
-  color: #6B0F1A;
-  font-size: 18px;
+  border-radius: 0 12px 12px 0;
+  background-color: white;
+  color: #9B2743;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
   z-index: 30;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-toggle-handle:hover {
-  background-color: #ffffff;
-  border-color: #c7c7c7;
-  color: #4a0a12;
+  background-color: #6B0F1A;
+  border-color: #6B0F1A;
+  color: white;
+  box-shadow: 2px 0 12px rgba(107, 15, 26, 0.15);
+  width: 32px;
 }
 
 .main-content {
@@ -69,22 +76,27 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  background: linear-gradient(135deg, #6B0F1A 0%, #4a0a12 100%);
+  gap: 28px;
+  background: linear-gradient(135deg, #6B0F1A 0%, #4a0a12 50%, #3a0710 100%);
   color: white;
 }
 
 .loading-screen p {
-  font-size: 20px;
+  font-size: 16px;
   margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
 }
 
 .theme-settings-screen {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  background: linear-gradient(180deg, #f8f2f4 0%, #f3f6fb 100%);
-  padding: 24px;
+  background:
+    linear-gradient(180deg, #f8f2f4 0%, #f3f6fb 100%);
+  padding: 32px 24px;
 }
 
 .theme-settings-panel {

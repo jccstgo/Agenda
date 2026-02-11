@@ -1,7 +1,9 @@
 .tab-bar {
   background-color: white;
-  border-bottom: 2px solid #e0e0e0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-bottom: none;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.03);
   position: sticky;
   top: 80px;
   z-index: 90;
@@ -14,54 +16,74 @@
   padding: 0;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: #9B2743 #f0f0f0;
+  scrollbar-color: rgba(155, 39, 67, 0.3) transparent;
 }
 
 .tab-bar-scroll::-webkit-scrollbar {
-  height: 4px;
+  height: 3px;
 }
 
 .tab-bar-scroll::-webkit-scrollbar-track {
-  background: #f0f0f0;
+  background: transparent;
 }
 
 .tab-bar-scroll::-webkit-scrollbar-thumb {
-  background: #9B2743;
-  border-radius: 2px;
+  background: rgba(155, 39, 67, 0.3);
+  border-radius: 9999px;
 }
 
 .tab-button {
   flex-shrink: 0;
-  padding: 18px 32px;
-  font-size: 18px;
+  padding: 16px 28px;
+  font-size: 15px;
   font-weight: 600;
-  color: #666;
+  color: #888;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--transition-normal);
   white-space: nowrap;
-  min-height: 64px;
+  min-height: 56px;
   display: flex;
   align-items: center;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+
+.tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background-color: #9B2743;
+  transition: all var(--transition-normal);
+  transform: translateX(-50%);
+  border-radius: 3px 3px 0 0;
 }
 
 .tab-button:hover {
   color: #6B0F1A;
-  background-color: rgba(155, 39, 67, 0.05);
+  background-color: rgba(155, 39, 67, 0.03);
 }
 
 .tab-button.active {
   color: #6B0F1A;
-  border-bottom-color: #9B2743;
-  background-color: rgba(155, 39, 67, 0.1);
+  font-weight: 700;
+  border-bottom-color: transparent;
+  background-color: rgba(155, 39, 67, 0.04);
+}
+
+.tab-button.active::after {
+  width: 100%;
 }
 
 @media (max-width: 768px) {
   .tab-button {
-    padding: 16px 24px;
-    font-size: 16px;
-    min-height: 56px;
+    padding: 14px 22px;
+    font-size: 14px;
+    min-height: 50px;
   }
 }
