@@ -34,6 +34,165 @@ export const initDatabase = () => {
     }
   };
 
+  const getTableColumns = (table: string): Set<string> => {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    return new Set(columns.map((column) => column.name));
+  };
+
+  const tableReferencesUsersLegacy = (table: string): boolean => {
+    const info = db
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table) as { sql: string } | undefined;
+    const sql = info?.sql?.toLowerCase() || '';
+    return sql.includes('users_legacy');
+  };
+
+  const runWithForeignKeysDisabled = (label: string, migration: () => void) => {
+    const transaction = db.transaction(migration);
+    db.pragma('foreign_keys = OFF');
+    try {
+      transaction();
+      console.log(`✓ Migración aplicada: ${label}`);
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+  };
+
+  const repairAuditLogsForeignKey = () => {
+    if (!tableReferencesUsersLegacy('audit_logs')) {
+      return;
+    }
+
+    const columns = getTableColumns('audit_logs');
+    const pick = (column: string, fallback = 'NULL') => (columns.has(column) ? column : fallback);
+    const timestampUtcExpr = pick('timestamp_utc', 'CURRENT_TIMESTAMP');
+    const timestampCdmxExpr = columns.has('timestamp_cdmx')
+      ? 'COALESCE(timestamp_cdmx, CURRENT_TIMESTAMP)'
+      : columns.has('timestamp_utc')
+      ? 'COALESCE(timestamp_utc, CURRENT_TIMESTAMP)'
+      : 'CURRENT_TIMESTAMP';
+
+    runWithForeignKeysDisabled('FK de audit_logs restaurada a users', () => {
+      db.exec('ALTER TABLE audit_logs RENAME TO audit_logs_legacy');
+      db.exec(`
+        CREATE TABLE audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          username TEXT NOT NULL,
+          action TEXT NOT NULL,
+          resource_type TEXT,
+          resource_id INTEGER,
+          resource_name TEXT,
+          details TEXT,
+          ip_address TEXT,
+          user_agent TEXT,
+          http_method TEXT,
+          endpoint TEXT,
+          status_code INTEGER,
+          request_context TEXT,
+          timestamp_utc DATETIME DEFAULT CURRENT_TIMESTAMP,
+          timestamp_cdmx TEXT NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `);
+      db.exec(`
+        INSERT INTO audit_logs (
+          id,
+          user_id,
+          username,
+          action,
+          resource_type,
+          resource_id,
+          resource_name,
+          details,
+          ip_address,
+          user_agent,
+          http_method,
+          endpoint,
+          status_code,
+          request_context,
+          timestamp_utc,
+          timestamp_cdmx
+        )
+        SELECT
+          id,
+          user_id,
+          username,
+          action,
+          resource_type,
+          resource_id,
+          resource_name,
+          details,
+          ip_address,
+          user_agent,
+          ${pick('http_method')},
+          ${pick('endpoint')},
+          ${pick('status_code')},
+          ${pick('request_context')},
+          ${timestampUtcExpr},
+          ${timestampCdmxExpr}
+        FROM audit_logs_legacy
+      `);
+      db.exec('DROP TABLE audit_logs_legacy');
+    });
+  };
+
+  const repairDocumentsForeignKey = () => {
+    if (!tableReferencesUsersLegacy('documents')) {
+      return;
+    }
+
+    const columns = getTableColumns('documents');
+    const pick = (column: string, fallback = 'NULL') => (columns.has(column) ? column : fallback);
+
+    runWithForeignKeysDisabled('FK de documents restaurada a users', () => {
+      db.exec('ALTER TABLE documents RENAME TO documents_legacy');
+      db.exec(`
+        CREATE TABLE documents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tab_id INTEGER NOT NULL,
+          filename TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          file_size INTEGER,
+          mime_type TEXT,
+          file_hash TEXT,
+          uploaded_by INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE CASCADE,
+          FOREIGN KEY (uploaded_by) REFERENCES users(id)
+        )
+      `);
+      db.exec(`
+        INSERT INTO documents (
+          id,
+          tab_id,
+          filename,
+          original_name,
+          file_path,
+          file_size,
+          mime_type,
+          file_hash,
+          uploaded_by,
+          created_at
+        )
+        SELECT
+          id,
+          tab_id,
+          filename,
+          original_name,
+          file_path,
+          ${pick('file_size')},
+          ${pick('mime_type')},
+          ${pick('file_hash')},
+          ${pick('uploaded_by')},
+          ${pick('created_at', 'CURRENT_TIMESTAMP')}
+        FROM documents_legacy
+      `);
+      db.exec('DROP TABLE documents_legacy');
+    });
+  };
+
   // Tabla de usuarios
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -138,18 +297,6 @@ export const initDatabase = () => {
     )
   `);
 
-  ensureColumn('audit_logs', 'http_method', 'TEXT');
-  ensureColumn('audit_logs', 'endpoint', 'TEXT');
-  ensureColumn('audit_logs', 'status_code', 'INTEGER');
-  ensureColumn('audit_logs', 'request_context', 'TEXT');
-
-  // Crear índices para búsquedas rápidas
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
-    CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp_utc);
-  `);
-
   // Tabla de pestañas/temas
   db.exec(`
     CREATE TABLE IF NOT EXISTS tabs (
@@ -178,8 +325,24 @@ export const initDatabase = () => {
     )
   `);
 
+  // Reparar tablas afectadas por migraciones antiguas que pudieron dejar FK a users_legacy
+  repairAuditLogsForeignKey();
+  repairDocumentsForeignKey();
+
+  ensureColumn('audit_logs', 'http_method', 'TEXT');
+  ensureColumn('audit_logs', 'endpoint', 'TEXT');
+  ensureColumn('audit_logs', 'status_code', 'INTEGER');
+  ensureColumn('audit_logs', 'request_context', 'TEXT');
+
   ensureColumn('documents', 'mime_type', 'TEXT');
   ensureColumn('documents', 'file_hash', 'TEXT');
+
+  // Crear índices para búsquedas rápidas
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp_utc);
+  `);
 
   // Insertar usuarios por defecto si no existen
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };

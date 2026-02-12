@@ -160,9 +160,13 @@ export const deleteDocument = (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Documento no encontrado' });
     }
 
-    // Eliminar archivo del sistema de archivos
-    if (fs.existsSync(document.file_path)) {
-      fs.unlinkSync(document.file_path);
+    // Intentar eliminar archivo físico sin bloquear la eliminación lógica en BD
+    try {
+      if (fs.existsSync(document.file_path)) {
+        fs.unlinkSync(document.file_path);
+      }
+    } catch (fileError) {
+      console.warn(`No se pudo eliminar archivo físico del documento ${document.id}:`, fileError);
     }
 
     // Eliminar de la base de datos
@@ -195,13 +199,32 @@ export const deleteDocument = (req: AuthRequest, res: Response) => {
 
 export const getDocumentFile = (req: AuthRequest, res: Response) => {
   try {
-    const { filename } = req.params;
-    const { tabId } = req.query;
+    const rawFilename = req.params.filename;
+    const safeFilename = path.basename(rawFilename);
+    const tabIdParam = req.query.tabId;
+    const tabId = typeof tabIdParam === 'string' ? Number.parseInt(tabIdParam, 10) : Number(tabIdParam);
 
-    const filePath = path.join(UPLOADS_DIR, `tab-${tabId}`, filename);
+    if (!Number.isInteger(tabId) || tabId <= 0) {
+      return res.status(400).json({ error: 'tabId inválido' });
+    }
 
-    if (!fs.existsSync(filePath)) {
+    const document = db.prepare('SELECT * FROM documents WHERE tab_id = ? AND filename = ?').get(tabId, safeFilename) as
+      | Document
+      | undefined;
+
+    const fallbackPath = path.join(UPLOADS_DIR, `tab-${tabId}`, safeFilename);
+    const candidatePaths = [document?.file_path, fallbackPath].filter(
+      (entry): entry is string => typeof entry === 'string' && entry.trim().length > 0
+    );
+    const resolvedFilePath = candidatePaths.find((candidate) => fs.existsSync(candidate));
+
+    if (!resolvedFilePath) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+
+    // Si se recuperó por fallback, sincronizar la ruta para futuras consultas.
+    if (document && document.file_path !== resolvedFilePath) {
+      db.prepare('UPDATE documents SET file_path = ? WHERE id = ?').run(resolvedFilePath, document.id);
     }
 
     // Obtener nombre de la pestaña
@@ -210,17 +233,17 @@ export const getDocumentFile = (req: AuthRequest, res: Response) => {
     logAudit(req, {
       action: 'VIEW_DOCUMENT',
       resourceType: 'document',
-      resourceName: filename,
-      details: `Visualizó el documento "${filename}" de la pestaña "${tab?.name}"`,
+      resourceName: safeFilename,
+      details: `Visualizó el documento "${safeFilename}" de la pestaña "${tab?.name}"`,
       statusCode: 200,
       extraContext: {
-        tabId: typeof tabId === 'string' ? parseInt(tabId) : tabId
+        tabId
       }
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.sendFile(filePath);
+    res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+    res.sendFile(resolvedFilePath);
   } catch (error) {
     console.error('Error sirviendo archivo:', error);
     res.status(500).json({ error: 'Error sirviendo archivo' });
