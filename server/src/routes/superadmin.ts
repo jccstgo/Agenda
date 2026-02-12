@@ -259,6 +259,9 @@ router.get('/audit-logs', authenticateToken, requireSuperAdmin, (req, res) => {
     const {
       userId,
       action,
+      httpMethod,
+      endpoint,
+      statusCode,
       startDate,
       endDate,
       limit = '100',
@@ -279,6 +282,21 @@ router.get('/audit-logs', authenticateToken, requireSuperAdmin, (req, res) => {
     if (action) {
       query += ' AND action = ?';
       params.push(action);
+    }
+
+    if (httpMethod) {
+      query += ' AND http_method = ?';
+      params.push(httpMethod);
+    }
+
+    if (endpoint) {
+      query += ' AND endpoint LIKE ?';
+      params.push(`%${endpoint}%`);
+    }
+
+    if (statusCode) {
+      query += ' AND status_code = ?';
+      params.push(parseInt(statusCode as string));
     }
 
     if (startDate) {
@@ -308,6 +326,21 @@ router.get('/audit-logs', authenticateToken, requireSuperAdmin, (req, res) => {
     if (action) {
       countQuery += ' AND action = ?';
       countParams.push(action);
+    }
+
+    if (httpMethod) {
+      countQuery += ' AND http_method = ?';
+      countParams.push(httpMethod);
+    }
+
+    if (endpoint) {
+      countQuery += ' AND endpoint LIKE ?';
+      countParams.push(`%${endpoint}%`);
+    }
+
+    if (statusCode) {
+      countQuery += ' AND status_code = ?';
+      countParams.push(parseInt(statusCode as string));
     }
 
     const { total } = db.prepare(countQuery).get(...countParams) as any;

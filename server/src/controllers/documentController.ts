@@ -2,6 +2,7 @@ import { Response } from 'express';
 import db from '../config/database';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../config/env';
 import { logAudit } from '../middleware/audit';
@@ -13,6 +14,8 @@ interface Document {
   original_name: string;
   file_path: string;
   file_size: number;
+  mime_type: string | null;
+  file_hash: string | null;
   uploaded_by: number;
   created_at: string;
 }
@@ -54,7 +57,12 @@ export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
       resourceType: 'tab',
       resourceId: parseInt(tabId),
       resourceName: tab?.name,
-      details: `Consultó ${documents.length} documentos de la pestaña "${tab?.name}"`
+      details: `Consultó ${documents.length} documentos de la pestaña "${tab?.name}"`,
+      statusCode: 200,
+      extraContext: {
+        tabId: parseInt(tabId),
+        documentsCount: documents.length
+      }
     });
 
     res.json(documents);
@@ -79,8 +87,8 @@ export const uploadDocuments = (req: AuthRequest, res: Response) => {
 
     const userId = req.user?.id;
     const insertDocument = db.prepare(`
-      INSERT INTO documents (tab_id, filename, original_name, file_path, file_size, uploaded_by)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO documents (tab_id, filename, original_name, file_path, file_size, mime_type, file_hash, uploaded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const getDocumentById = db.prepare('SELECT * FROM documents WHERE id = ?');
 
@@ -88,12 +96,22 @@ export const uploadDocuments = (req: AuthRequest, res: Response) => {
       const createdDocuments: Document[] = [];
       filesToInsert.forEach((file) => {
         const originalName = normalizeOriginalName(file.originalname);
+        let fileHash: string | null = null;
+        try {
+          const buffer = fs.readFileSync(file.path);
+          fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
+        } catch (error) {
+          console.error(`No se pudo calcular hash para ${file.originalname}:`, error);
+        }
+
         const result = insertDocument.run(
           tabId,
           file.filename,
           originalName,
           file.path,
           file.size,
+          file.mimetype || null,
+          fileHash,
           userId
         );
         const createdDocument = getDocumentById.get(result.lastInsertRowid) as Document;
@@ -113,7 +131,14 @@ export const uploadDocuments = (req: AuthRequest, res: Response) => {
         resourceType: 'document',
         resourceId: document.id,
         resourceName: document.original_name,
-        details: `Subió el documento "${document.original_name}" (${(document.file_size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`
+        details: `Subió el documento "${document.original_name}" (${(document.file_size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`,
+        statusCode: 201,
+        extraContext: {
+          tabId: parseInt(tabId),
+          fileSize: document.file_size,
+          mimeType: document.mime_type,
+          fileHash: document.file_hash
+        }
       });
     });
 
@@ -151,7 +176,14 @@ export const deleteDocument = (req: AuthRequest, res: Response) => {
       resourceType: 'document',
       resourceId: document.id,
       resourceName: document.original_name,
-      details: `Eliminó el documento "${document.original_name}" de la pestaña "${tab?.name}"`
+      details: `Eliminó el documento "${document.original_name}" de la pestaña "${tab?.name}"`,
+      statusCode: 200,
+      extraContext: {
+        tabId: document.tab_id,
+        fileSize: document.file_size,
+        mimeType: document.mime_type,
+        fileHash: document.file_hash
+      }
     });
 
     res.json({ message: 'Documento eliminado correctamente' });
@@ -179,7 +211,11 @@ export const getDocumentFile = (req: AuthRequest, res: Response) => {
       action: 'VIEW_DOCUMENT',
       resourceType: 'document',
       resourceName: filename,
-      details: `Visualizó el documento "${filename}" de la pestaña "${tab?.name}"`
+      details: `Visualizó el documento "${filename}" de la pestaña "${tab?.name}"`,
+      statusCode: 200,
+      extraContext: {
+        tabId: typeof tabId === 'string' ? parseInt(tabId) : tabId
+      }
     });
 
     res.setHeader('Content-Type', 'application/pdf');

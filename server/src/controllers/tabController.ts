@@ -2,6 +2,7 @@ import { Response } from 'express';
 import db from '../config/database';
 import fs from 'fs';
 import type { AuthRequest } from '../middleware/auth';
+import { logAudit } from '../middleware/audit';
 
 interface Tab {
   id: number;
@@ -61,6 +62,20 @@ export const createTab = (req: AuthRequest, res: Response) => {
 
     const result = db.prepare('INSERT INTO tabs (name, order_index) VALUES (?, ?)').run(name, maxOrder.max_order + 1);
     const newTab = db.prepare('SELECT * FROM tabs WHERE id = ?').get(result.lastInsertRowid) as Tab;
+
+    logAudit(req, {
+      action: 'CREATE_TAB',
+      resourceType: 'tab',
+      resourceId: newTab.id,
+      resourceName: newTab.name,
+      details: `Creó la pestaña "${newTab.name}" en posición ${newTab.order_index}`,
+      statusCode: 201,
+      extraContext: {
+        tabId: newTab.id,
+        tabName: newTab.name,
+        orderIndex: newTab.order_index
+      }
+    });
 
     res.status(201).json(newTab);
   } catch (error) {
@@ -138,8 +153,31 @@ export const updateTabs = (req: AuthRequest, res: Response) => {
       });
     });
 
+    const previousTabs = getOrderedTabs();
+
     updateTabsTransaction(validTabs);
-    res.json(getOrderedTabs());
+    const orderedTabs = getOrderedTabs();
+
+    logAudit(req, {
+      action: 'UPDATE_TABS',
+      resourceType: 'tab',
+      details: `Actualizó el orden/nombre de ${orderedTabs.length} pestañas`,
+      statusCode: 200,
+      extraContext: {
+        previousTabs: previousTabs.map((tab) => ({
+          id: tab.id,
+          name: tab.name,
+          orderIndex: tab.order_index
+        })),
+        updatedTabs: orderedTabs.map((tab) => ({
+          id: tab.id,
+          name: tab.name,
+          orderIndex: tab.order_index
+        }))
+      }
+    });
+
+    res.json(orderedTabs);
   } catch (error) {
     console.error('Error actualizando pestañas:', error);
     res.status(500).json({ error: 'Error actualizando pestañas' });
@@ -154,7 +192,9 @@ export const deleteTab = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'ID de tema inválido' });
     }
 
-    const existingTab = db.prepare('SELECT id FROM tabs WHERE id = ?').get(tabId) as { id: number } | undefined;
+    const existingTab = db.prepare('SELECT id, name FROM tabs WHERE id = ?').get(tabId) as
+      | { id: number; name: string }
+      | undefined;
     if (!existingTab) {
       return res.status(404).json({ error: 'Tema no encontrado' });
     }
@@ -188,7 +228,28 @@ export const deleteTab = (req: AuthRequest, res: Response) => {
     });
 
     deleteTransaction(tabId);
-    res.json(getOrderedTabs());
+    const orderedTabs = getOrderedTabs();
+
+    logAudit(req, {
+      action: 'DELETE_TAB',
+      resourceType: 'tab',
+      resourceId: tabId,
+      resourceName: existingTab.name,
+      details: `Eliminó la pestaña "${existingTab.name}"`,
+      statusCode: 200,
+      extraContext: {
+        deletedTabId: tabId,
+        deletedTabName: existingTab.name,
+        deletedDocumentsCount: tabDocuments.length,
+        remainingTabs: orderedTabs.map((tab) => ({
+          id: tab.id,
+          name: tab.name,
+          orderIndex: tab.order_index
+        }))
+      }
+    });
+
+    res.json(orderedTabs);
   } catch (error) {
     console.error('Error eliminando pestaña:', error);
     res.status(500).json({ error: 'Error eliminando pestaña' });

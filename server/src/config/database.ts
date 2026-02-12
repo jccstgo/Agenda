@@ -25,6 +25,15 @@ db.pragma('foreign_keys = ON');
 
 // Inicializar tablas
 export const initDatabase = () => {
+  const ensureColumn = (table: string, column: string, definition: string) => {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    const exists = columns.some((entry) => entry.name === column);
+    if (!exists) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      console.log(`✓ Migración aplicada: columna ${table}.${column} agregada`);
+    }
+  };
+
   // Tabla de usuarios
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -119,11 +128,20 @@ export const initDatabase = () => {
       details TEXT,
       ip_address TEXT,
       user_agent TEXT,
+      http_method TEXT,
+      endpoint TEXT,
+      status_code INTEGER,
+      request_context TEXT,
       timestamp_utc DATETIME DEFAULT CURRENT_TIMESTAMP,
       timestamp_cdmx TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
+
+  ensureColumn('audit_logs', 'http_method', 'TEXT');
+  ensureColumn('audit_logs', 'endpoint', 'TEXT');
+  ensureColumn('audit_logs', 'status_code', 'INTEGER');
+  ensureColumn('audit_logs', 'request_context', 'TEXT');
 
   // Crear índices para búsquedas rápidas
   db.exec(`
@@ -151,12 +169,17 @@ export const initDatabase = () => {
       original_name TEXT NOT NULL,
       file_path TEXT NOT NULL,
       file_size INTEGER,
+      mime_type TEXT,
+      file_hash TEXT,
       uploaded_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE CASCADE,
       FOREIGN KEY (uploaded_by) REFERENCES users(id)
     )
   `);
+
+  ensureColumn('documents', 'mime_type', 'TEXT');
+  ensureColumn('documents', 'file_hash', 'TEXT');
 
   // Insertar usuarios por defecto si no existen
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
