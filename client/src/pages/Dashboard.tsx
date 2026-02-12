@@ -102,7 +102,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const handleDocumentSelect = (doc: Document) => {
     setSelectedDocument(doc);
 
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 680) {
       setIsSidebarVisible(false);
     }
   };

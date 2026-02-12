@@ -178,14 +178,52 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+/* Tableta */
+@media (max-width: 1024px) {
+  .theme-settings {
+    padding: 22px;
+    border-radius: 16px;
+  }
+
+  .theme-settings-header h2 {
+    font-size: 20px;
+  }
+
+  .theme-settings-list {
+    max-height: 360px;
+  }
+}
+
+@media (max-width: 900px) {
+  .theme-settings {
+    padding: 18px;
+  }
+
+  .theme-row {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .theme-name-input {
+    min-height: 38px;
+    font-size: 13px;
+  }
+
+  .theme-create-button,
+  .theme-save-button {
+    font-size: 13px;
+  }
+}
+
+/* Móvil */
+@media (max-width: 680px) {
   .theme-settings {
     padding: 14px;
     border-radius: 14px;
   }
 
   .theme-settings-header h2 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .theme-row {

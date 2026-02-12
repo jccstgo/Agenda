@@ -135,13 +135,49 @@
   margin: 0 auto;
 }
 
+/* Tableta horizontal / desktop pequeño */
 @media (max-width: 1024px) {
   .dashboard-content {
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 300px 1fr;
+  }
+
+  .dashboard-content.sidebar-hidden {
+    grid-template-columns: 24px 1fr;
+  }
+
+  .theme-settings-screen {
+    padding: 24px 16px;
   }
 }
 
-@media (max-width: 768px) {
+/* Tableta vertical (768px - 900px aprox) */
+@media (max-width: 900px) {
+  .dashboard-content {
+    grid-template-columns: 260px 1fr;
+  }
+
+  .sidebar-toggle-handle {
+    min-width: 36px;
+    height: 36px;
+    right: -22px;
+  }
+
+  .sidebar-toggle-handle:hover {
+    right: -22px;
+  }
+
+  .sidebar-toggle-collapsed {
+    min-width: 34px;
+    right: -20px;
+  }
+
+  .sidebar-toggle-collapsed:hover {
+    right: -20px;
+  }
+}
+
+/* Móvil */
+@media (max-width: 680px) {
   .theme-settings-screen {
     padding: 12px;
   }
