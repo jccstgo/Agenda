@@ -1,5 +1,13 @@
 import axios from 'axios';
-import type { LoginResponse, Tab, Document, TabUpdateInput } from '../types';
+import type {
+  LoginResponse,
+  Tab,
+  Document,
+  TabUpdateInput,
+  SuperadminAuditLogsResponse,
+  SuperadminAuditLogsQuery,
+  SuperadminAuditStatsResponse
+} from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') || '/api';
 
@@ -48,6 +56,18 @@ export const resetDefaultPasswordsAsSuperadmin = async (): Promise<ResetDefaultP
   const response = await api.post<ResetDefaultPasswordsResponse>('/superadmin/users/reset-default-passwords', {
     confirmation: 'RESET_DEFAULT_PASSWORDS_SUPERADMIN'
   });
+  return response.data;
+};
+
+export const getSuperadminAuditLogs = async (
+  query: SuperadminAuditLogsQuery = {}
+): Promise<SuperadminAuditLogsResponse> => {
+  const response = await api.get<SuperadminAuditLogsResponse>('/superadmin/audit-logs', { params: query });
+  return response.data;
+};
+
+export const getSuperadminAuditStats = async (): Promise<SuperadminAuditStatsResponse> => {
+  const response = await api.get<SuperadminAuditStatsResponse>('/superadmin/audit-logs/stats');
   return response.data;
 };
 

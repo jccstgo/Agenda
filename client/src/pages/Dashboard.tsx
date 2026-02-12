@@ -4,6 +4,7 @@ import TabBar from '../components/TabBar';
 import DocumentList from '../components/DocumentList';
 import PDFViewer from '../components/PDFViewer';
 import ThemeSettings from '../components/ThemeSettings';
+import SuperadminAuditPanel from '../components/SuperadminAuditPanel';
 import { getTabs, getDocuments } from '../services/api';
 import type { Tab, Document } from '../types';
 import { getUser, isAdmin } from '../utils/auth';
@@ -16,7 +17,9 @@ interface DashboardProps {
 export default function Dashboard({ onLogout }: DashboardProps) {
   const user = getUser();
   const isUserAdmin = isAdmin(user);
+  const isSuperadmin = user?.role === 'superadmin';
   const [showThemeSettings, setShowThemeSettings] = useState(false);
+  const [showSuperadminAudit, setShowSuperadminAudit] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -122,13 +125,31 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         onLogout={onLogout}
         isAdmin={isUserAdmin}
         isThemeSettingsOpen={showThemeSettings}
-        onToggleThemeSettings={() => setShowThemeSettings((previous) => !previous)}
+        onToggleThemeSettings={() => {
+          setShowThemeSettings((previous) => !previous);
+          setShowSuperadminAudit(false);
+        }}
+        isSuperadminAuditOpen={showSuperadminAudit}
+        onToggleSuperadminAudit={
+          isSuperadmin
+            ? () => {
+                setShowSuperadminAudit((previous) => !previous);
+                setShowThemeSettings(false);
+              }
+            : undefined
+        }
       />
 
       {showThemeSettings && isUserAdmin ? (
         <section className="theme-settings-screen">
           <div className="theme-settings-panel">
             <ThemeSettings tabs={tabs} activeTab={activeTab} onTabsChange={handleTabsChange} />
+          </div>
+        </section>
+      ) : showSuperadminAudit && isSuperadmin ? (
+        <section className="superadmin-audit-screen">
+          <div className="superadmin-audit-panel">
+            <SuperadminAuditPanel />
           </div>
         </section>
       ) : (

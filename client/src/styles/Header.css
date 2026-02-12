@@ -105,6 +105,17 @@
   box-shadow: 0 1px 4px rgba(212, 175, 55, 0.3);
 }
 
+.user-role.superadmin {
+  background-color: rgba(212, 175, 55, 0.2);
+  color: #ffe7a3;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+.user-role.reader {
+  background-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.95);
+}
+
 .logout-button {
   padding: 10px 20px;
   font-size: 14px;
@@ -162,6 +173,31 @@
   border-color: rgba(149, 202, 235, 0.4);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(40, 116, 166, 0.3);
+}
+
+.superadmin-audit-button {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1f4f8a 0%, #2f6fb5 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  min-height: 44px;
+  letter-spacing: 0.02em;
+}
+
+.superadmin-audit-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 12px rgba(31, 79, 138, 0.32);
+}
+
+.superadmin-audit-button.active {
+  background: linear-gradient(135deg, #24523d 0%, #2d6d51 100%);
+  box-shadow: 0 2px 10px rgba(36, 82, 61, 0.3);
 }
 
 .superadmin-reset-button {
@@ -225,6 +261,7 @@
   }
 
   .theme-settings-toggle,
+  .superadmin-audit-button,
   .superadmin-reset-button,
   .logout-button {
     padding: 9px 14px;
@@ -243,6 +280,7 @@
   }
 
   .theme-settings-toggle,
+  .superadmin-audit-button,
   .superadmin-reset-button,
   .logout-button {
     padding: 8px 12px;
@@ -280,6 +318,7 @@
   }
 
   .theme-settings-toggle,
+  .superadmin-audit-button,
   .superadmin-reset-button,
   .logout-button {
     padding: 8px 10px;

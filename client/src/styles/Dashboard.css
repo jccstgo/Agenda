@@ -135,6 +135,19 @@
   margin: 0 auto;
 }
 
+.superadmin-audit-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #f4f6fb 0%, #eef1f7 100%);
+  padding: 24px;
+}
+
+.superadmin-audit-panel {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+}
+
 /* Tableta horizontal / desktop pequeño */
 @media (max-width: 1024px) {
   .dashboard-content {
@@ -147,6 +160,10 @@
 
   .theme-settings-screen {
     padding: 24px 16px;
+  }
+
+  .superadmin-audit-screen {
+    padding: 16px;
   }
 }
 
@@ -180,6 +197,10 @@
 @media (max-width: 680px) {
   .theme-settings-screen {
     padding: 12px;
+  }
+
+  .superadmin-audit-screen {
+    padding: 10px;
   }
 
   .dashboard-content.sidebar-visible {

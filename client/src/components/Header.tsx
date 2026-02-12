@@ -8,16 +8,26 @@ interface HeaderProps {
   isAdmin?: boolean;
   isThemeSettingsOpen?: boolean;
   onToggleThemeSettings?: () => void;
+  isSuperadminAuditOpen?: boolean;
+  onToggleSuperadminAudit?: () => void;
 }
 
 export default function Header({
   onLogout,
   isAdmin = false,
   isThemeSettingsOpen = false,
-  onToggleThemeSettings
+  onToggleThemeSettings,
+  isSuperadminAuditOpen = false,
+  onToggleSuperadminAudit
 }: HeaderProps) {
   const user = getUser();
   const [resettingPasswords, setResettingPasswords] = useState(false);
+
+  const getRoleLabel = () => {
+    if (user?.role === 'superadmin') return 'Super Administrador';
+    if (user?.role === 'admin') return 'Administrador';
+    return 'Director';
+  };
 
   const handleLogout = () => {
     clearAuth();
@@ -62,11 +72,18 @@ export default function Header({
       <div className="header-right">
         <div className="user-info">
           <span className="user-name">{user?.username}</span>
-          <span className={`user-role ${user?.role}`}>
-            {user?.role === 'admin' ? 'Administrador' : 'Principal'}
-          </span>
+          <span className={`user-role ${user?.role}`}>{getRoleLabel()}</span>
         </div>
         <div className="header-actions">
+          {user?.role === 'superadmin' && onToggleSuperadminAudit && (
+            <button
+              onClick={onToggleSuperadminAudit}
+              className={`superadmin-audit-button ${isSuperadminAuditOpen ? 'active' : ''}`}
+              title="Abrir auditoría técnica"
+            >
+              {isSuperadminAuditOpen ? 'Volver a Agenda' : 'Auditoría'}
+            </button>
+          )}
           {user?.role === 'superadmin' && (
             <button
               onClick={handleResetDefaultPasswords}
