@@ -50,8 +50,15 @@ if (IS_PRODUCTION) {
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
-  res.status(500).json({
-    error: err.message || 'Error interno del servidor'
+  const statusCode =
+    typeof err?.status === 'number'
+      ? err.status
+      : err?.name === 'MulterError'
+      ? 400
+      : 500;
+
+  res.status(statusCode).json({
+    error: err?.message || 'Error interno del servidor'
   });
 });
 

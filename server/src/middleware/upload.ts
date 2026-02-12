@@ -26,11 +26,27 @@ const storage = multer.diskStorage({
   }
 });
 
+const PDF_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/x-pdf',
+  'application/acrobat',
+  'applications/vnd.pdf',
+  'text/pdf',
+  'text/x-pdf'
+]);
+
 const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (file.mimetype === 'application/pdf') {
+  const mime = (file.mimetype || '').toLowerCase();
+  const hasPdfExtension = path.extname(file.originalname || '').toLowerCase() === '.pdf';
+  const isKnownPdfMime = PDF_MIME_TYPES.has(mime);
+  const isGenericMimeButPdfName = (mime === '' || mime === 'application/octet-stream') && hasPdfExtension;
+
+  if (isKnownPdfMime || isGenericMimeButPdfName) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten archivos PDF'));
+    const error = new Error('Solo se permiten archivos PDF') as Error & { status?: number };
+    error.status = 400;
+    cb(error);
   }
 };
 
