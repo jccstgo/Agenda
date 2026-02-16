@@ -86,3 +86,29 @@ export interface SuperadminAuditStatsResponse {
     count: number;
   }>;
 }
+
+export interface SuperadminTabAssignableUser {
+  id: number;
+  username: string;
+  role: 'admin';
+}
+
+export interface SuperadminTabAssignment {
+  id: number;
+  name: string;
+  order_index: number;
+  userIds: number[];
+}
+
+export interface SuperadminTabAssignmentsResponse {
+  tabs: SuperadminTabAssignment[];
+  users: SuperadminTabAssignableUser[];
+}
+
+export interface SuperadminManagedUser {
+  id: number;
+  username: string;
+  role: 'superadmin' | 'admin' | 'reader';
+  created_at: string;
+  last_password_change: string | null;
+}

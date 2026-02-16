@@ -325,6 +325,19 @@ export const initDatabase = () => {
     )
   `);
 
+  // Tabla de permisos por tema (qué usuarios admin pueden gestionar cada tema)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tab_user_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tab_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tab_id, user_id),
+      FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   // Reparar tablas afectadas por migraciones antiguas que pudieron dejar FK a users_legacy
   repairAuditLogsForeignKey();
   repairDocumentsForeignKey();
@@ -342,6 +355,10 @@ export const initDatabase = () => {
     CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp_utc);
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_tab_user_permissions_tab ON tab_user_permissions(tab_id);
+    CREATE INDEX IF NOT EXISTS idx_tab_user_permissions_user ON tab_user_permissions(user_id);
   `);
 
   // Insertar usuarios por defecto si no existen

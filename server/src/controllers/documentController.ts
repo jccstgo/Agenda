@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import { UPLOADS_DIR } from '../config/env';
 import { logAudit } from '../middleware/audit';
+import { canUserManageTab } from '../services/tabPermissions';
 
 interface Document {
   id: number;
@@ -74,7 +75,15 @@ export const getDocumentsByTab = (req: AuthRequest, res: Response) => {
 
 export const uploadDocuments = (req: AuthRequest, res: Response) => {
   try {
-    const { tabId } = req.params;
+    const tabId = Number.parseInt(req.params.tabId, 10);
+    if (!Number.isInteger(tabId) || tabId <= 0) {
+      return res.status(400).json({ error: 'ID de tema inválido' });
+    }
+
+    if (!canUserManageTab(req.user, tabId)) {
+      return res.status(403).json({ error: 'No tiene permisos para gestionar documentos en este tema' });
+    }
+
     const files = Array.isArray(req.files)
       ? req.files
       : req.files
@@ -134,7 +143,7 @@ export const uploadDocuments = (req: AuthRequest, res: Response) => {
         details: `Subió el documento "${document.original_name}" (${(document.file_size / 1024).toFixed(2)} KB) a la pestaña "${tab?.name}"`,
         statusCode: 201,
         extraContext: {
-          tabId: parseInt(tabId),
+          tabId,
           fileSize: document.file_size,
           mimeType: document.mime_type,
           fileHash: document.file_hash
@@ -158,6 +167,10 @@ export const deleteDocument = (req: AuthRequest, res: Response) => {
 
     if (!document) {
       return res.status(404).json({ error: 'Documento no encontrado' });
+    }
+
+    if (!canUserManageTab(req.user, document.tab_id)) {
+      return res.status(403).json({ error: 'No tiene permisos para eliminar documentos de este tema' });
     }
 
     // Intentar eliminar archivo físico sin bloquear la eliminación lógica en BD

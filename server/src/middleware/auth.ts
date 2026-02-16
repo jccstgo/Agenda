@@ -64,3 +64,10 @@ export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction
   }
   next();
 };
+
+export const requireSuperAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de super administrador' });
+  }
+  next();
+};

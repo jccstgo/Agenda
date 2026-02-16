@@ -6,18 +6,42 @@ import PDFViewer from '../components/PDFViewer';
 import ThemeSettings from '../components/ThemeSettings';
 import SuperadminAuditPanel from '../components/SuperadminAuditPanel';
 import { getTabs, getDocuments } from '../services/api';
+import {
+  getOfflineDocumentsByTab,
+  getOfflineSnapshotMeta,
+  getOfflineTabs,
+  hasOfflineAgendaSnapshot,
+  syncOfflineAgenda
+} from '../services/offlineAgenda';
 import type { Tab, Document } from '../types';
-import { getUser, isAdmin } from '../utils/auth';
+import { getUser } from '../utils/auth';
 import '../styles/Dashboard.css';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
+const formatOfflineSyncDate = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+
+  return date.toLocaleString('es-MX', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 export default function Dashboard({ onLogout }: DashboardProps) {
   const user = getUser();
-  const isUserAdmin = isAdmin(user);
+  const canConfigureThemes = user?.role === 'superadmin';
   const isSuperadmin = user?.role === 'superadmin';
+  const isDirector = user?.role === 'reader';
+
   const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [showSuperadminAudit, setShowSuperadminAudit] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -27,53 +51,174 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  const [isOnline, setIsOnline] = useState<boolean>(window.navigator.onLine);
+  const [isUsingOfflineData, setIsUsingOfflineData] = useState(false);
+  const [offlineSyncing, setOfflineSyncing] = useState(false);
+  const [offlineSyncMessage, setOfflineSyncMessage] = useState('');
+  const [offlineSyncError, setOfflineSyncError] = useState('');
+  const [offlineMeta, setOfflineMeta] = useState(getOfflineSnapshotMeta());
+
   useEffect(() => {
     loadTabs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading && isDirector && isOnline && isUsingOfflineData) {
+      loadTabs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
+  useEffect(() => {
+    if (!isDirector || !isOnline || offlineSyncing) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncInBackground = async () => {
+      try {
+        const result = await runOfflineSync(false);
+        if (cancelled || !result) {
+          return;
+        }
+
+        if (result.downloadedCount > 0) {
+          setOfflineSyncMessage(
+            `Copia offline actualizada automáticamente (${result.downloadedCount} archivo(s) nuevos/actualizados).`
+          );
+        }
+      } catch {
+        // Evitar ruido visual en sincronización automática.
+      }
+    };
+
+    syncInBackground();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDirector, isOnline]);
 
   useEffect(() => {
     if (activeTab > 0) {
       loadDocuments(activeTab);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  const applyDocumentsState = (docs: Document[], tabId: number) => {
+    setDocuments(docs);
+    setSelectedDocument((current) => {
+      if (docs.length === 0) {
+        return null;
+      }
+
+      if (current && current.tab_id === tabId) {
+        const stillExists = docs.find((doc) => doc.id === current.id);
+        if (stillExists) {
+          return stillExists;
+        }
+      }
+
+      return docs[0];
+    });
+  };
+
+  const applyOfflineState = (preferredTabId?: number): boolean => {
+    const offlineTabs = getOfflineTabs();
+    setTabs(offlineTabs);
+    setOfflineMeta(getOfflineSnapshotMeta());
+
+    if (offlineTabs.length === 0) {
+      setActiveTab(0);
+      applyDocumentsState([], 0);
+      return false;
+    }
+
+    const tabId =
+      preferredTabId && offlineTabs.some((tab) => tab.id === preferredTabId)
+        ? preferredTabId
+        : offlineTabs[0].id;
+
+    setActiveTab(tabId);
+    const offlineDocuments = getOfflineDocumentsByTab(tabId);
+    applyDocumentsState(offlineDocuments, tabId);
+    return true;
+  };
+
   const loadTabs = async () => {
+    const canUseOffline = isDirector && hasOfflineAgendaSnapshot();
+
+    if (isDirector && !window.navigator.onLine && canUseOffline) {
+      applyOfflineState();
+      setIsUsingOfflineData(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       const tabsData = await getTabs();
       setTabs(tabsData);
+      setIsUsingOfflineData(false);
+
       if (tabsData.length > 0) {
         setActiveTab(tabsData[0].id);
       } else {
         setActiveTab(0);
-        setDocuments([]);
+        applyDocumentsState([], 0);
       }
     } catch (error) {
-      console.error('Error cargando pestañas:', error);
+      if (canUseOffline) {
+        const loaded = applyOfflineState();
+        if (loaded) {
+          setIsUsingOfflineData(true);
+        }
+      } else {
+        console.error('Error cargando pestañas:', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const loadDocuments = async (tabId: number) => {
+    const canUseOffline = isDirector && hasOfflineAgendaSnapshot();
+    const shouldForceOffline = isDirector && (!window.navigator.onLine || isUsingOfflineData);
+
+    if (shouldForceOffline && canUseOffline) {
+      const offlineDocuments = getOfflineDocumentsByTab(tabId);
+      applyDocumentsState(offlineDocuments, tabId);
+      return;
+    }
+
     try {
       const docs = await getDocuments(tabId);
-      setDocuments(docs);
-      setSelectedDocument((current) => {
-        if (docs.length === 0) {
-          return null;
-        }
-
-        if (current && current.tab_id === tabId) {
-          const stillExists = docs.find((doc) => doc.id === current.id);
-          if (stillExists) {
-            return stillExists;
-          }
-        }
-
-        return docs[0];
-      });
+      applyDocumentsState(docs, tabId);
+      setIsUsingOfflineData(false);
     } catch (error) {
-      console.error('Error cargando documentos:', error);
+      if (canUseOffline) {
+        const offlineDocuments = getOfflineDocumentsByTab(tabId);
+        applyDocumentsState(offlineDocuments, tabId);
+        setIsUsingOfflineData(true);
+      } else {
+        console.error('Error cargando documentos:', error);
+      }
     }
   };
 
@@ -110,6 +255,52 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     }
   };
 
+  const runOfflineSync = async (showFeedback: boolean) => {
+    if (!window.navigator.onLine) {
+      if (showFeedback) {
+        setOfflineSyncError('Para sincronizar la copia offline necesita conexión a la red del sistema.');
+      }
+      throw new Error('Para sincronizar la copia offline necesita conexión a la red del sistema.');
+    }
+
+    setOfflineSyncing(true);
+    setOfflineSyncError('');
+    if (showFeedback) {
+      setOfflineSyncMessage('');
+    }
+
+    try {
+      const result = await syncOfflineAgenda();
+      setOfflineMeta(getOfflineSnapshotMeta());
+      if (showFeedback) {
+        setOfflineSyncMessage(
+          `Copia actualizada. ${result.totalDocuments} PDF(s), ${result.downloadedCount} descargado(s), ${result.skippedCount} reutilizado(s).`
+        );
+      }
+
+      if (isUsingOfflineData) {
+        applyOfflineState(activeTab);
+      }
+
+      return result;
+    } catch (error: any) {
+      if (showFeedback) {
+        setOfflineSyncError(error?.message || 'No se pudo sincronizar la copia offline.');
+      }
+      throw error;
+    } finally {
+      setOfflineSyncing(false);
+    }
+  };
+
+  const handleOfflineSync = async () => {
+    try {
+      await runOfflineSync(true);
+    } catch {
+      // El mensaje ya se gestiona en runOfflineSync(true).
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -123,7 +314,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     <div className="dashboard">
       <Header
         onLogout={onLogout}
-        isAdmin={isUserAdmin}
+        isAdmin={canConfigureThemes}
         isThemeSettingsOpen={showThemeSettings}
         onToggleThemeSettings={() => {
           setShowThemeSettings((previous) => !previous);
@@ -140,7 +331,43 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         }
       />
 
-      {showThemeSettings && isUserAdmin ? (
+      {isDirector && (
+        <section className={`offline-sync-bar ${isUsingOfflineData ? 'offline-copy-active' : ''}`}>
+          <div className="offline-sync-status">
+            <span className={`offline-sync-dot ${isOnline ? 'online' : 'offline'}`} aria-hidden="true"></span>
+            <span className="offline-sync-text">{isOnline ? 'Conexión activa' : 'Sin conexión'}</span>
+            <span className="offline-sync-mode">
+              {isUsingOfflineData ? 'Visualizando copia offline' : 'Visualizando agenda en línea'}
+            </span>
+            {offlineMeta ? (
+              <span className="offline-sync-meta">
+                Última copia: {formatOfflineSyncDate(offlineMeta.syncedAt)} ({offlineMeta.totalDocuments} PDF)
+              </span>
+            ) : (
+              <span className="offline-sync-meta warning">Sin copia offline disponible</span>
+            )}
+          </div>
+          <div className="offline-sync-actions">
+            <button
+              type="button"
+              className="offline-sync-button"
+              onClick={handleOfflineSync}
+              disabled={offlineSyncing || !isOnline}
+            >
+              {offlineSyncing ? 'Sincronizando...' : 'Sincronizar copia offline'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {isDirector && (offlineSyncMessage || offlineSyncError) && (
+        <section className="offline-sync-feedback">
+          {offlineSyncMessage && <p className="offline-sync-success">{offlineSyncMessage}</p>}
+          {offlineSyncError && <p className="offline-sync-error">{offlineSyncError}</p>}
+        </section>
+      )}
+
+      {showThemeSettings && canConfigureThemes ? (
         <section className="theme-settings-screen">
           <div className="theme-settings-panel">
             <ThemeSettings tabs={tabs} activeTab={activeTab} onTabsChange={handleTabsChange} />

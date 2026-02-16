@@ -5,6 +5,112 @@
   overflow: hidden;
 }
 
+.offline-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, #f8fafd 0%, #f2f5f9 100%);
+}
+
+.offline-sync-bar.offline-copy-active {
+  background: linear-gradient(180deg, #fff8eb 0%, #fdf2db 100%);
+  border-bottom-color: rgba(157, 107, 17, 0.22);
+}
+
+.offline-sync-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.offline-sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.offline-sync-dot.online {
+  background-color: #1f9d61;
+  box-shadow: 0 0 0 3px rgba(31, 157, 97, 0.18);
+}
+
+.offline-sync-dot.offline {
+  background-color: #c0392b;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.18);
+}
+
+.offline-sync-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #22313f;
+}
+
+.offline-sync-mode,
+.offline-sync-meta {
+  font-size: 12px;
+  color: #465564;
+  white-space: nowrap;
+}
+
+.offline-sync-meta.warning {
+  color: #9d4411;
+  font-weight: 600;
+}
+
+.offline-sync-actions {
+  flex: 0 0 auto;
+}
+
+.offline-sync-button {
+  min-height: 36px;
+  border: 1px solid rgba(43, 92, 143, 0.25);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2e6dac 0%, #3d82c7 100%);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0 14px;
+}
+
+.offline-sync-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.offline-sync-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.offline-sync-feedback {
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background-color: #ffffff;
+}
+
+.offline-sync-success,
+.offline-sync-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.offline-sync-success {
+  color: #1f7a4e;
+}
+
+.offline-sync-error {
+  color: #b42318;
+}
+
 .dashboard-content {
   flex: 1;
   display: grid;
@@ -150,6 +256,10 @@
 
 /* Tableta horizontal / desktop pequeño */
 @media (max-width: 1024px) {
+  .offline-sync-bar {
+    padding: 10px 12px;
+  }
+
   .dashboard-content {
     grid-template-columns: 300px 1fr;
   }
@@ -169,6 +279,16 @@
 
 /* Tableta vertical (768px - 900px aprox) */
 @media (max-width: 900px) {
+  .offline-sync-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .offline-sync-status {
+    gap: 8px;
+  }
+
   .dashboard-content {
     grid-template-columns: 260px 1fr;
   }
@@ -195,6 +315,23 @@
 
 /* Móvil */
 @media (max-width: 680px) {
+  .offline-sync-bar {
+    padding: 8px 10px;
+  }
+
+  .offline-sync-feedback {
+    padding: 8px 10px;
+  }
+
+  .offline-sync-text {
+    font-size: 12px;
+  }
+
+  .offline-sync-mode,
+  .offline-sync-meta {
+    font-size: 11px;
+  }
+
   .theme-settings-screen {
     padding: 12px;
   }

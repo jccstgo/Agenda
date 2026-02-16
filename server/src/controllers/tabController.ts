@@ -3,6 +3,7 @@ import db from '../config/database';
 import fs from 'fs';
 import type { AuthRequest } from '../middleware/auth';
 import { logAudit } from '../middleware/audit';
+import { hasTabAssignmentsConfigured } from '../services/tabPermissions';
 
 interface Tab {
   id: number;
@@ -26,8 +27,25 @@ const getOrderedTabs = () => {
     .all() as Tab[];
 };
 
-export const getTabs = (_req: AuthRequest, res: Response) => {
+export const getTabs = (req: AuthRequest, res: Response) => {
   try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    if (user.role === 'admin' && hasTabAssignmentsConfigured()) {
+      const assignedTabs = db.prepare(`
+        SELECT t.*
+        FROM tabs t
+        INNER JOIN tab_user_permissions tup ON tup.tab_id = t.id
+        WHERE tup.user_id = ?
+        ORDER BY t.order_index ASC, t.id ASC
+      `).all(user.userId) as Tab[];
+
+      return res.json(assignedTabs);
+    }
+
     res.json(getOrderedTabs());
   } catch (error) {
     console.error('Error obteniendo pestañas:', error);

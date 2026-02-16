@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import type { Document } from '../types';
 import { getDocumentUrl } from '../services/api';
+import { getOfflinePdfObjectUrl } from '../services/offlineAgenda';
 import '../styles/PDFViewer.css';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
 // Configurar worker de pdf.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.js', import.meta.url).toString();
 
 interface PDFViewerProps {
   document: Document | null;
@@ -17,14 +18,92 @@ export default function PDFViewer({ document: selectedDocument }: PDFViewerProps
   const [numPages, setNumPages] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(900);
   const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [isOnline, setIsOnline] = useState<boolean>(window.navigator.onLine);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const offlineObjectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const revokeOfflineObjectUrl = () => {
+      if (offlineObjectUrlRef.current) {
+        URL.revokeObjectURL(offlineObjectUrlRef.current);
+        offlineObjectUrlRef.current = null;
+      }
+    };
+
+    const resolvePdfUrl = async () => {
+      if (!selectedDocument) {
+        setNumPages(0);
+        setPdfUrl('');
+        revokeOfflineObjectUrl();
+        return;
+      }
+
+      const onlineUrl = getDocumentUrl(selectedDocument.filename, selectedDocument.tab_id);
+
+      if (isOnline) {
+        revokeOfflineObjectUrl();
+        if (!isCancelled) {
+          setPdfUrl(onlineUrl);
+        }
+        return;
+      }
+
+      const offlineUrl = await getOfflinePdfObjectUrl(selectedDocument);
+      if (isCancelled) {
+        if (offlineUrl) {
+          URL.revokeObjectURL(offlineUrl);
+        }
+        return;
+      }
+
+      revokeOfflineObjectUrl();
+
+      if (offlineUrl) {
+        offlineObjectUrlRef.current = offlineUrl;
+        setPdfUrl(offlineUrl);
+      } else {
+        setPdfUrl(onlineUrl);
+      }
+    };
+
+    resolvePdfUrl();
+
+    return () => {
+      isCancelled = true;
+      if (!selectedDocument) {
+        revokeOfflineObjectUrl();
+      }
+    };
+  }, [selectedDocument, isOnline]);
+
+  useEffect(() => {
+    return () => {
+      if (offlineObjectUrlRef.current) {
+        URL.revokeObjectURL(offlineObjectUrlRef.current);
+        offlineObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedDocument) {
-      const url = getDocumentUrl(selectedDocument.filename, selectedDocument.tab_id);
-      setPdfUrl(url);
       return;
     }
 

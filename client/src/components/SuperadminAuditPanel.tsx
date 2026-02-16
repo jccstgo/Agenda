@@ -22,6 +22,28 @@ interface FilterDraft {
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const EXPORT_LIMIT = 5000;
+const ACTION_LABELS: Record<string, string> = {
+  UPLOAD_DOCUMENT: 'Subió un documento',
+  DELETE_DOCUMENT: 'Eliminó un documento',
+  VIEW_DOCUMENT: 'Visualizó un documento',
+  DOWNLOAD_DOCUMENT: 'Descargó un documento',
+  LIST_DOCUMENTS: 'Consultó la lista de documentos',
+  CREATE_TAB: 'Creó un tema',
+  UPDATE_TABS: 'Actualizó temas',
+  DELETE_TAB: 'Eliminó un tema',
+  RESET_DEFAULT_PASSWORDS: 'Reseteó contraseñas por defecto',
+  CHANGE_USER_PASSWORD: 'Cambió la contraseña de un usuario',
+  CHANGE_USER_ROLE: 'Cambió el rol de un usuario',
+  UPDATE_USER_USERNAME: 'Cambió el nombre de usuario',
+  CREATE_USER: 'Creó un usuario',
+  DELETE_USER: 'Eliminó un usuario',
+  VIEW_AUDIT_LOGS: 'Consultó los logs de auditoría',
+  VIEW_AUDIT_STATS: 'Consultó estadísticas de auditoría',
+  VIEW_USER_ACTIVITY: 'Consultó actividad de un usuario',
+  VIEW_ALL_USERS: 'Consultó la lista de usuarios',
+  VIEW_TAB_ASSIGNMENTS: 'Consultó permisos por tema',
+  UPDATE_TAB_ASSIGNMENTS: 'Actualizó permisos por tema'
+};
 
 const DEFAULT_FILTERS: FilterDraft = {
   userId: '',
@@ -36,6 +58,24 @@ const DEFAULT_FILTERS: FilterDraft = {
 const toNumber = (value: string): number | undefined => {
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) ? parsed : undefined;
+};
+
+const getActionLabel = (action: string): string => {
+  if (ACTION_LABELS[action]) {
+    return ACTION_LABELS[action];
+  }
+
+  const readable = action
+    .toLowerCase()
+    .split('_')
+    .join(' ')
+    .trim();
+
+  if (!readable) {
+    return action;
+  }
+
+  return readable.charAt(0).toUpperCase() + readable.slice(1);
 };
 
 const buildQuery = (filters: FilterDraft, limit: number, offset: number): SuperadminAuditLogsQuery => {
@@ -155,9 +195,14 @@ export default function SuperadminAuditPanel() {
       'RESET_DEFAULT_PASSWORDS',
       'CHANGE_USER_PASSWORD',
       'CHANGE_USER_ROLE',
+      'UPDATE_USER_USERNAME',
+      'CREATE_USER',
+      'DELETE_USER',
       'VIEW_AUDIT_LOGS',
       'VIEW_AUDIT_STATS',
-      'VIEW_ALL_USERS'
+      'VIEW_ALL_USERS',
+      'VIEW_TAB_ASSIGNMENTS',
+      'UPDATE_TAB_ASSIGNMENTS'
     ];
     return Array.from(new Set([...fromStats, ...known])).sort((a, b) => a.localeCompare(b));
   }, [stats]);
@@ -301,7 +346,7 @@ export default function SuperadminAuditPanel() {
         </article>
         <article className="audit-metric-card">
           <span>Acción más frecuente</span>
-          <strong>{stats?.topActions[0]?.action ?? '-'}</strong>
+          <strong>{stats?.topActions[0]?.action ? getActionLabel(stats.topActions[0].action) : '-'}</strong>
         </article>
         <article className="audit-metric-card">
           <span>Usuario más activo</span>
@@ -327,7 +372,7 @@ export default function SuperadminAuditPanel() {
               <option value="">Todas</option>
               {actionOptions.map((action) => (
                 <option key={action} value={action}>
-                  {action}
+                  {getActionLabel(action)}
                 </option>
               ))}
             </select>
@@ -460,7 +505,10 @@ export default function SuperadminAuditPanel() {
                   <tr key={entry.id} className={expanded ? 'expanded-row' : ''}>
                     <td>{formatTimestamp(entry.timestamp_utc)}</td>
                     <td>{entry.username}</td>
-                    <td>{entry.action}</td>
+                    <td>
+                      <span className="audit-action-label">{getActionLabel(entry.action)}</span>
+                      <span className="audit-action-code">{entry.action}</span>
+                    </td>
                     <td>{entry.http_method || '-'}</td>
                     <td>{entry.endpoint || '-'}</td>
                     <td>

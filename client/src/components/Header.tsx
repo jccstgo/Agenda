@@ -99,7 +99,7 @@ export default function Header({
               onClick={onToggleThemeSettings}
               className={`theme-settings-toggle ${isThemeSettingsOpen ? 'active' : ''}`}
             >
-              {isThemeSettingsOpen ? 'Volver a Agenda' : 'Configurar Temas'}
+              {isThemeSettingsOpen ? 'Volver a Agenda' : 'Temas y Usuarios'}
             </button>
           )}
           <button onClick={handleLogout} className="logout-button">

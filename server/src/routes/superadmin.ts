@@ -13,6 +13,7 @@ import {
 } from '../config/env';
 
 const router = express.Router();
+const DELETED_USER_PREFIX = 'deleted-user-';
 
 // Middleware para verificar que el usuario sea superadmin
 const requireSuperAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -22,7 +23,184 @@ const requireSuperAdmin = (req: express.Request, res: express.Response, next: ex
   next();
 };
 
+const isReservedUsername = (username: string): boolean => {
+  return username.toLowerCase().startsWith(DELETED_USER_PREFIX);
+};
+
+const getTabAssignmentsSnapshot = () => {
+  const tabs = db.prepare('SELECT id, name, order_index FROM tabs ORDER BY order_index ASC, id ASC').all() as Array<{
+    id: number;
+    name: string;
+    order_index: number;
+  }>;
+
+  const users = db
+    .prepare(
+      "SELECT id, username, role FROM users WHERE role = 'admin' AND lower(username) NOT LIKE lower(?) ORDER BY lower(username) ASC, id ASC"
+    )
+    .all(`${DELETED_USER_PREFIX}%`) as Array<{ id: number; username: string; role: 'admin' }>;
+
+  const rows = db.prepare('SELECT tab_id, user_id FROM tab_user_permissions').all() as Array<{
+    tab_id: number;
+    user_id: number;
+  }>;
+
+  const userIdsByTab = new Map<number, number[]>();
+  rows.forEach((entry) => {
+    const bucket = userIdsByTab.get(entry.tab_id) || [];
+    bucket.push(entry.user_id);
+    userIdsByTab.set(entry.tab_id, bucket);
+  });
+
+  return {
+    tabs: tabs.map((tab) => ({
+      ...tab,
+      userIds: (userIdsByTab.get(tab.id) || []).sort((a, b) => a - b)
+    })),
+    users
+  };
+};
+
 // ========== GESTIÓN DE USUARIOS ==========
+
+router.post('/users', authenticateToken, requireSuperAdmin, (req, res) => {
+  try {
+    const rawUsername = req.body?.username;
+    const rawPassword = req.body?.password;
+    const rawRole = req.body?.role;
+
+    const username = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+    const password = typeof rawPassword === 'string' ? rawPassword : '';
+    const role = rawRole === 'reader' ? 'reader' : 'admin';
+
+    if (!username) {
+      return res.status(400).json({ error: 'El nombre de usuario es obligatorio.' });
+    }
+
+    if (username.length < 3 || username.length > 40) {
+      return res.status(400).json({ error: 'El usuario debe tener entre 3 y 40 caracteres.' });
+    }
+
+    if (!/^[A-Za-z0-9._-]+$/.test(username)) {
+      return res.status(400).json({ error: 'El usuario solo puede contener letras, números, punto, guion o guion bajo.' });
+    }
+
+    if (isReservedUsername(username)) {
+      return res.status(400).json({ error: 'Nombre de usuario reservado. Elija otro nombre.' });
+    }
+
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+    }
+
+    const existingUser = db
+      .prepare('SELECT id FROM users WHERE lower(username) = lower(?)')
+      .get(username) as { id: number } | undefined;
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'Ya existe un usuario con ese nombre.' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const insertResult = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(
+      username,
+      hashedPassword,
+      role
+    );
+
+    const createdUser = {
+      id: Number(insertResult.lastInsertRowid),
+      username,
+      role
+    };
+
+    logAudit(req, {
+      action: 'CREATE_USER',
+      resourceType: 'user',
+      resourceId: createdUser.id,
+      resourceName: createdUser.username,
+      details: `Creó usuario ${createdUser.username} con rol ${createdUser.role}`,
+      statusCode: 201
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Usuario ${createdUser.username} creado correctamente.`,
+      user: createdUser
+    });
+  } catch (error: any) {
+    console.error('Error creando usuario:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Actualizar nombre de usuario
+router.put('/users/:userId', authenticateToken, requireSuperAdmin, (req, res) => {
+  try {
+    const userId = Number.parseInt(req.params.userId, 10);
+    const rawUsername = req.body?.username;
+    const username = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    if (!username) {
+      return res.status(400).json({ error: 'El nombre de usuario es obligatorio.' });
+    }
+
+    if (username.length < 3 || username.length > 40) {
+      return res.status(400).json({ error: 'El usuario debe tener entre 3 y 40 caracteres.' });
+    }
+
+    if (!/^[A-Za-z0-9._-]+$/.test(username)) {
+      return res.status(400).json({ error: 'El usuario solo puede contener letras, números, punto, guion o guion bajo.' });
+    }
+
+    if (isReservedUsername(username)) {
+      return res.status(400).json({ error: 'Nombre de usuario reservado. Elija otro nombre.' });
+    }
+
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId) as
+      | { id: number; username: string; role: 'superadmin' | 'admin' | 'reader' }
+      | undefined;
+
+    if (!user || isReservedUsername(user.username)) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (user.role === 'superadmin') {
+      return res.status(403).json({ error: 'No se permite modificar el nombre del super administrador.' });
+    }
+
+    const existingUser = db
+      .prepare('SELECT id FROM users WHERE lower(username) = lower(?) AND id != ?')
+      .get(username, userId) as { id: number } | undefined;
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'Ya existe un usuario con ese nombre.' });
+    }
+
+    db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, userId);
+
+    logAudit(req, {
+      action: 'UPDATE_USER_USERNAME',
+      resourceType: 'user',
+      resourceId: userId,
+      resourceName: username,
+      details: `Cambió el usuario de "${user.username}" a "${username}"`,
+      statusCode: 200
+    });
+
+    res.json({
+      success: true,
+      message: `Usuario actualizado a "${username}".`
+    });
+  } catch (error: any) {
+    console.error('Error actualizando usuario:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Resetear contraseñas por defecto (solo superadmin)
 router.post('/users/reset-default-passwords', authenticateToken, requireSuperAdmin, (req, res) => {
@@ -53,7 +231,9 @@ router.post('/users/reset-default-passwords', authenticateToken, requireSuperAdm
     const findByUsernameAndRole = db.prepare(
       'SELECT id, username, role FROM users WHERE lower(username) = lower(?) AND role = ?'
     );
-    const findFirstByRole = db.prepare('SELECT id, username, role FROM users WHERE role = ? ORDER BY id ASC LIMIT 1');
+    const findFirstByRole = db.prepare(
+      'SELECT id, username, role FROM users WHERE role = ? AND lower(username) NOT LIKE lower(?) ORDER BY id ASC LIMIT 1'
+    );
     const findByUsername = db.prepare('SELECT id FROM users WHERE lower(username) = lower(?)');
 
     const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
@@ -81,7 +261,7 @@ router.post('/users/reset-default-passwords', authenticateToken, requireSuperAdm
         const exact = findByUsernameAndRole.get(target.preferredUsername, target.role) as
           | { id: number; username: string; role: string }
           | undefined;
-        const byRole = findFirstByRole.get(target.role) as
+        const byRole = findFirstByRole.get(target.role, `${DELETED_USER_PREFIX}%`) as
           | { id: number; username: string; role: string }
           | undefined;
         const user = exact || byRole;
@@ -132,14 +312,18 @@ router.post('/users/reset-default-passwords', authenticateToken, requireSuperAdm
 // Listar todos los usuarios
 router.get('/users', authenticateToken, requireSuperAdmin, (req, res) => {
   try {
+    const userColumns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+    const hasLastPasswordChange = userColumns.some((column) => column.name === 'last_password_change');
+
     const users = db.prepare(`
       SELECT
         id,
         username,
         role,
         created_at,
-        last_password_change
+        ${hasLastPasswordChange ? 'last_password_change' : 'created_at AS last_password_change'}
       FROM users
+      WHERE lower(username) NOT LIKE lower(?)
       ORDER BY
         CASE role
           WHEN 'superadmin' THEN 1
@@ -147,7 +331,7 @@ router.get('/users', authenticateToken, requireSuperAdmin, (req, res) => {
           WHEN 'reader' THEN 3
         END,
         created_at
-    `).all();
+    `).all(`${DELETED_USER_PREFIX}%`);
 
     logAudit(req, {
       action: 'VIEW_ALL_USERS',
@@ -157,6 +341,64 @@ router.get('/users', authenticateToken, requireSuperAdmin, (req, res) => {
     res.json({ users });
   } catch (error: any) {
     console.error('Error listando usuarios:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar usuario (borrado lógico para preservar auditoría)
+router.delete('/users/:userId', authenticateToken, requireSuperAdmin, (req, res) => {
+  try {
+    const userId = Number.parseInt(req.params.userId, 10);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId) as
+      | { id: number; username: string; role: 'superadmin' | 'admin' | 'reader' }
+      | undefined;
+
+    if (!user || isReservedUsername(user.username)) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (user.role === 'superadmin') {
+      return res.status(403).json({ error: 'No se puede eliminar un super administrador.' });
+    }
+
+    if (req.user?.userId === user.id) {
+      return res.status(403).json({ error: 'No puede eliminar su propio usuario.' });
+    }
+
+    const deletedUsername = `${DELETED_USER_PREFIX}${user.id}-${Date.now()}`;
+    const blockedPassword = bcrypt.hashSync(`${Date.now()}-${Math.random().toString(36).slice(2)}`, 10);
+
+    const deleteTransaction = db.transaction(() => {
+      db.prepare('DELETE FROM tab_user_permissions WHERE user_id = ?').run(user.id);
+      db.prepare('UPDATE documents SET uploaded_by = NULL WHERE uploaded_by = ?').run(user.id);
+      db.prepare(`
+        UPDATE users
+        SET username = ?, password = ?, role = 'reader', last_password_change = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(deletedUsername, blockedPassword, user.id);
+    });
+
+    deleteTransaction();
+
+    logAudit(req, {
+      action: 'DELETE_USER',
+      resourceType: 'user',
+      resourceId: user.id,
+      resourceName: user.username,
+      details: `Eliminó al usuario ${user.username} (${user.role})`,
+      statusCode: 200
+    });
+
+    res.json({
+      success: true,
+      message: `Usuario ${user.username} eliminado correctamente.`
+    });
+  } catch (error: any) {
+    console.error('Error eliminando usuario:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -174,7 +416,7 @@ router.post('/users/:userId/change-password', authenticateToken, requireSuperAdm
     // Obtener información del usuario
     const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId) as any;
 
-    if (!user) {
+    if (!user || isReservedUsername(user.username)) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
@@ -223,7 +465,7 @@ router.post('/users/:userId/change-role', authenticateToken, requireSuperAdmin, 
 
     const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId) as any;
 
-    if (!user) {
+    if (!user || isReservedUsername(user.username)) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
@@ -252,6 +494,125 @@ router.post('/users/:userId/change-role', authenticateToken, requireSuperAdmin, 
 });
 
 // ========== LOGS DE AUDITORÍA ==========
+
+// ========== ASIGNACIÓN DE USUARIOS POR TEMA ==========
+
+router.get('/tab-assignments', authenticateToken, requireSuperAdmin, (req, res) => {
+  try {
+    const snapshot = getTabAssignmentsSnapshot();
+
+    logAudit(req, {
+      action: 'VIEW_TAB_ASSIGNMENTS',
+      resourceType: 'tab',
+      details: `Consultó asignaciones por tema (${snapshot.tabs.length} temas, ${snapshot.users.length} usuarios admin)`,
+      statusCode: 200
+    });
+
+    res.json(snapshot);
+  } catch (error: any) {
+    console.error('Error obteniendo asignaciones por tema:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/tab-assignments', authenticateToken, requireSuperAdmin, (req, res) => {
+  try {
+    const incomingAssignments = req.body?.assignments;
+    if (!Array.isArray(incomingAssignments)) {
+      return res.status(400).json({ error: 'Formato inválido. "assignments" debe ser un arreglo.' });
+    }
+
+    const existingTabs = db.prepare('SELECT id FROM tabs').all() as Array<{ id: number }>;
+    const existingTabIds = new Set(existingTabs.map((tab) => tab.id));
+
+    const adminUsers = db
+      .prepare("SELECT id FROM users WHERE role = 'admin'")
+      .all() as Array<{ id: number }>;
+    const adminUserIds = new Set(adminUsers.map((user) => user.id));
+
+    const seenTabs = new Set<number>();
+    const normalized = incomingAssignments.map((entry: unknown) => {
+      if (
+        typeof entry !== 'object' ||
+        entry === null ||
+        !('tabId' in entry) ||
+        !('userIds' in entry) ||
+        typeof (entry as { tabId: unknown }).tabId !== 'number' ||
+        !Number.isInteger((entry as { tabId: number }).tabId) ||
+        !Array.isArray((entry as { userIds: unknown }).userIds)
+      ) {
+        return null;
+      }
+
+      const tabId = (entry as { tabId: number }).tabId;
+      if (!existingTabIds.has(tabId)) {
+        return null;
+      }
+
+      if (seenTabs.has(tabId)) {
+        return null;
+      }
+      seenTabs.add(tabId);
+
+      const uniqueUserIds = Array.from(
+        new Set(
+          (entry as { userIds: unknown[] }).userIds
+            .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0)
+        )
+      );
+
+      if (uniqueUserIds.some((id) => !adminUserIds.has(id))) {
+        return null;
+      }
+
+      return {
+        tabId,
+        userIds: uniqueUserIds
+      };
+    });
+
+    if (normalized.some((entry) => entry === null)) {
+      return res.status(400).json({ error: 'Se detectaron asignaciones inválidas.' });
+    }
+
+    const validAssignments = normalized as Array<{ tabId: number; userIds: number[] }>;
+    const userPairs = validAssignments.flatMap((assignment) =>
+      assignment.userIds.map((userId) => ({
+        tabId: assignment.tabId,
+        userId
+      }))
+    );
+
+    const replaceTransaction = db.transaction(() => {
+      db.prepare('DELETE FROM tab_user_permissions').run();
+      const insertStmt = db.prepare('INSERT INTO tab_user_permissions (tab_id, user_id) VALUES (?, ?)');
+      userPairs.forEach((entry) => {
+        insertStmt.run(entry.tabId, entry.userId);
+      });
+    });
+
+    replaceTransaction();
+    const snapshot = getTabAssignmentsSnapshot();
+
+    logAudit(req, {
+      action: 'UPDATE_TAB_ASSIGNMENTS',
+      resourceType: 'tab',
+      details: `Actualizó asignaciones por tema (${userPairs.length} permisos activos)`,
+      statusCode: 200,
+      extraContext: {
+        permissionsCount: userPairs.length,
+        assignedTabs: snapshot.tabs
+          .filter((tab) => tab.userIds.length > 0)
+          .map((tab) => ({ tabId: tab.id, userIds: tab.userIds }))
+      }
+    });
+
+    res.json(snapshot);
+  } catch (error: any) {
+    console.error('Error actualizando asignaciones por tema:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Ver todos los logs de auditoría
 router.get('/audit-logs', authenticateToken, requireSuperAdmin, (req, res) => {
