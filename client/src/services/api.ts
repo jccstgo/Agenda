@@ -44,6 +44,22 @@ export const verifyToken = async (): Promise<boolean> => {
   }
 };
 
+export interface ChangeOwnPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export const changeOwnPassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<ChangeOwnPasswordResponse> => {
+  const response = await api.post<ChangeOwnPasswordResponse>('/auth/change-password', {
+    currentPassword,
+    newPassword
+  });
+  return response.data;
+};
+
 export interface ResetDefaultPasswordsResponse {
   success: boolean;
   message: string;

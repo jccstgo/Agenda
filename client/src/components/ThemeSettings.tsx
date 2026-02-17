@@ -10,7 +10,8 @@ import {
   updateSuperadminUsername,
   changeSuperadminUserPassword,
   changeSuperadminUserRole,
-  deleteSuperadminUser
+  deleteSuperadminUser,
+  resetDefaultPasswordsAsSuperadmin
 } from '../services/api';
 import type {
   Tab,
@@ -76,6 +77,7 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<ManageableRole>('admin');
   const [creatingUser, setCreatingUser] = useState(false);
+  const [resettingDefaultPasswords, setResettingDefaultPasswords] = useState(false);
 
   const currentUserId = getUser()?.id || null;
 
@@ -420,6 +422,29 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
     }
   };
 
+  const handleResetDefaultPasswords = async () => {
+    const confirmed = confirm(
+      'Esta acción restablecerá contraseñas de superadmin, administradores y directores usando los valores DEFAULT_*_PASSWORD configurados en el servidor. ¿Desea continuar?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResettingDefaultPasswords(true);
+    try {
+      const response = await resetDefaultPasswordsAsSuperadmin();
+      const updatedUsers = response.users.map((entry) => `${entry.username} (${entry.role})`).join(', ');
+      alert(
+        `${response.message}\n\nUsuarios actualizados: ${updatedUsers}\n\nUse los valores DEFAULT_*_PASSWORD del servidor para iniciar sesión.`
+      );
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'No se pudieron restablecer las contraseñas.');
+    } finally {
+      setResettingDefaultPasswords(false);
+    }
+  };
+
   return (
     <section className="theme-settings">
       <div className="theme-settings-header">
@@ -732,6 +757,35 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
             </table>
           </div>
         )}
+      </section>
+
+      <section className="theme-access-section">
+        <div className="theme-section-header">
+          <h3>4. Restablecimiento de contraseñas por defecto</h3>
+          <p>
+            Esta función se usa para recuperación de acceso. Restablece las contraseñas de superadmin,
+            administradores y directores a los valores de entorno configurados en el servidor
+            (`DEFAULT_SUPERADMIN_PASSWORD`, `DEFAULT_ADMIN_PASSWORD`, `DEFAULT_READER_PASSWORD`).
+          </p>
+        </div>
+
+        <div className="theme-password-reset-note">
+          <p>
+            Use esta acción solo cuando sea necesario. Después del restablecimiento, los usuarios deberán
+            ingresar con la contraseña por defecto y luego cambiarla desde su cuenta.
+          </p>
+        </div>
+
+        <div className="theme-password-reset-actions">
+          <button
+            type="button"
+            className="theme-reset-passwords-button"
+            onClick={handleResetDefaultPasswords}
+            disabled={resettingDefaultPasswords}
+          >
+            {resettingDefaultPasswords ? 'Restableciendo...' : 'Restablecer contraseñas por defecto'}
+          </button>
+        </div>
       </section>
     </section>
   );

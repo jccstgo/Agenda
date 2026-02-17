@@ -175,6 +175,31 @@
   box-shadow: 0 2px 8px rgba(40, 116, 166, 0.3);
 }
 
+.change-password-button {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #24523d 0%, #2d6d51 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  min-height: 44px;
+  letter-spacing: 0.02em;
+}
+
+.change-password-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 12px rgba(36, 82, 61, 0.35);
+}
+
+.change-password-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .superadmin-audit-button {
   padding: 10px 16px;
   font-size: 13px;
@@ -200,28 +225,93 @@
   box-shadow: 0 2px 10px rgba(36, 82, 61, 0.3);
 }
 
-.superadmin-reset-button {
-  padding: 10px 16px;
+.change-password-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.48);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.change-password-modal {
+  width: min(420px, 100%);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.18),
+    0 16px 40px rgba(24, 31, 42, 0.2);
+  padding: 18px;
+}
+
+.change-password-modal h3 {
+  margin: 0;
+  color: #4a0a12;
+  font-size: 20px;
+}
+
+.change-password-modal p {
+  margin: 6px 0 14px;
+  color: #5f6570;
   font-size: 13px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 10px;
+}
+
+.change-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.change-password-form input {
+  min-height: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.change-password-form input:focus {
+  border-color: #9b2743;
+  box-shadow: 0 0 0 3px rgba(155, 39, 67, 0.08);
+  outline: none;
+}
+
+.change-password-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.change-password-cancel {
+  min-height: 38px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background-color: #ffffff;
+  color: #4d5560;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  min-height: 44px;
-  letter-spacing: 0.02em;
 }
 
-.superadmin-reset-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 4px 12px rgba(192, 57, 43, 0.35);
+.change-password-submit {
+  min-height: 38px;
+  border: 1px solid rgba(107, 15, 26, 0.25);
+  background: linear-gradient(135deg, #6b0f1a 0%, #8b1f31 100%);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.superadmin-reset-button:disabled {
-  opacity: 0.65;
+.change-password-cancel:disabled,
+.change-password-submit:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -261,8 +351,8 @@
   }
 
   .theme-settings-toggle,
+  .change-password-button,
   .superadmin-audit-button,
-  .superadmin-reset-button,
   .logout-button {
     padding: 9px 14px;
     font-size: 13px;
@@ -280,8 +370,8 @@
   }
 
   .theme-settings-toggle,
+  .change-password-button,
   .superadmin-audit-button,
-  .superadmin-reset-button,
   .logout-button {
     padding: 8px 12px;
     font-size: 12px;
@@ -318,8 +408,8 @@
   }
 
   .theme-settings-toggle,
+  .change-password-button,
   .superadmin-audit-button,
-  .superadmin-reset-button,
   .logout-button {
     padding: 8px 10px;
     font-size: 12px;
