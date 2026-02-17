@@ -426,88 +426,94 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
         <h2>Configuración de temas y usuarios</h2>
       </div>
 
-      <div className="theme-settings-list">
-        {editableTabs.map((tab, index) => (
-          <div key={tab.id} className={`theme-row ${activeTab === tab.id ? 'active' : ''}`}>
-            <div className="theme-row-move">
+      <section className="theme-config-section">
+        <div className="theme-section-header">
+          <h3>1. Configuración de temas</h3>
+          <p>En este apartado puede crear, renombrar, ordenar y eliminar los temas de la agenda.</p>
+        </div>
+
+        <div className="theme-settings-list">
+          {editableTabs.map((tab, index) => (
+            <div key={tab.id} className={`theme-row ${activeTab === tab.id ? 'active' : ''}`}>
+              <div className="theme-row-move">
+                <button
+                  type="button"
+                  className="theme-icon-button"
+                  onClick={() => moveTab(index, 'up')}
+                  disabled={index === 0 || saving}
+                  title="Subir tema"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="theme-icon-button"
+                  onClick={() => moveTab(index, 'down')}
+                  disabled={index === editableTabs.length - 1 || saving}
+                  title="Bajar tema"
+                >
+                  ↓
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={tab.name}
+                onChange={(event) => handleNameChange(tab.id, event.target.value)}
+                className="theme-name-input"
+                maxLength={120}
+                placeholder="Nombre del tema"
+                disabled={saving}
+              />
+
               <button
                 type="button"
-                className="theme-icon-button"
-                onClick={() => moveTab(index, 'up')}
-                disabled={index === 0 || saving}
-                title="Subir tema"
+                className="theme-delete-button"
+                onClick={() => handleDelete(tab.id, tab.name)}
+                disabled={tabs.length <= 1 || saving || deletingId === tab.id}
+                title="Eliminar tema"
               >
-                ↑
-              </button>
-              <button
-                type="button"
-                className="theme-icon-button"
-                onClick={() => moveTab(index, 'down')}
-                disabled={index === editableTabs.length - 1 || saving}
-                title="Bajar tema"
-              >
-                ↓
+                {deletingId === tab.id ? '...' : 'Eliminar'}
               </button>
             </div>
+          ))}
+        </div>
 
-            <input
-              type="text"
-              value={tab.name}
-              onChange={(event) => handleNameChange(tab.id, event.target.value)}
-              className="theme-name-input"
-              maxLength={120}
-              placeholder="Nombre del tema"
-              disabled={saving}
-            />
+        <div className="theme-create-row">
+          <input
+            type="text"
+            value={newTabName}
+            onChange={(event) => setNewTabName(event.target.value)}
+            className="theme-name-input"
+            maxLength={120}
+            placeholder="Nuevo tema"
+            disabled={creating || saving}
+          />
+          <button
+            type="button"
+            className="theme-create-button"
+            onClick={handleCreate}
+            disabled={!normalizeName(newTabName) || creating || saving}
+          >
+            {creating ? 'Creando...' : 'Agregar'}
+          </button>
+        </div>
 
-            <button
-              type="button"
-              className="theme-delete-button"
-              onClick={() => handleDelete(tab.id, tab.name)}
-              disabled={tabs.length <= 1 || saving || deletingId === tab.id}
-              title="Eliminar tema"
-            >
-              {deletingId === tab.id ? '...' : 'Eliminar'}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="theme-create-row">
-        <input
-          type="text"
-          value={newTabName}
-          onChange={(event) => setNewTabName(event.target.value)}
-          className="theme-name-input"
-          maxLength={120}
-          placeholder="Nuevo tema"
-          disabled={creating || saving}
-        />
         <button
           type="button"
-          className="theme-create-button"
-          onClick={handleCreate}
-          disabled={!normalizeName(newTabName) || creating || saving}
+          className="theme-save-button"
+          onClick={handleSave}
+          disabled={!hasChanges || hasInvalidNames || saving}
         >
-          {creating ? 'Creando...' : 'Agregar'}
+          {saving ? 'Guardando...' : 'Guardar ajustes de temas'}
         </button>
-      </div>
-
-      <button
-        type="button"
-        className="theme-save-button"
-        onClick={handleSave}
-        disabled={!hasChanges || hasInvalidNames || saving}
-      >
-        {saving ? 'Guardando...' : 'Guardar ajustes de temas'}
-      </button>
+      </section>
 
       <section className="theme-access-section">
-        <div className="theme-access-header">
-          <h3>Gestión de usuarios</h3>
+        <div className="theme-section-header">
+          <h3>2. Gestión de usuarios</h3>
           <p>
-            Aquí puede dar de alta usuarios, modificar usuario/contraseña/rol o eliminarlos. Los usuarios admin pueden
-            asignarse a uno o varios temas.
+            En este apartado puede dar de alta usuarios, modificar usuario/contraseña/rol y eliminar usuarios.
           </p>
         </div>
 
@@ -654,10 +660,12 @@ export default function ThemeSettings({ tabs, activeTab, onTabsChange }: ThemeSe
             </table>
           </div>
         )}
+      </section>
 
-        <div className="theme-access-header theme-access-subheader">
-          <h3>Permisos por tema</h3>
-          <p>Seleccione qué usuarios administradores pueden subir o eliminar documentos en cada tema.</p>
+      <section className="theme-access-section">
+        <div className="theme-section-header">
+          <h3>3. Permisos por tema</h3>
+          <p>En este apartado define qué administradores pueden gestionar documentos en cada tema.</p>
         </div>
 
         <div className="theme-access-actions">
