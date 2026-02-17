@@ -89,7 +89,7 @@ export default function Header({
           </div>
           <div className="header-title">
             <h1>Agenda Digital</h1>
-            <p>Sistema de Gestión de Documentos</p>
+            <p>Sistema de Gestión de Agenda</p>
           </div>
         </div>
 
